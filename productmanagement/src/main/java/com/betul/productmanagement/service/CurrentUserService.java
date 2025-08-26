@@ -3,6 +3,8 @@ package com.betul.productmanagement.service;
 import com.betul.productmanagement.entity.User;
 import com.betul.productmanagement.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -21,13 +23,24 @@ import org.springframework.stereotype.Service;
 public class CurrentUserService {
 
     private final UserRepository userRepository;
+    private static final Logger logger = LoggerFactory.getLogger(CurrentUserService.class);
 
     public User getCurrentUserOrThrow() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || auth.getName() == null) {
+            logger.warn("Authentication object is null, cannot find current user.");
             throw new RuntimeException("Not authenticated");
         }
-        return userRepository.findByEmail(auth.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        String userEmail = auth.getName();
+        logger.info("Attempting to find current user by email from security context: {}", userEmail);
+
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> {
+                    logger.error("User with email {} not found in the database.", userEmail);
+                    return new RuntimeException("User not found");
+                });
+
+        logger.info("Current user found: ID={}, Email={}", user.getId(), user.getEmail());
+        return user;
     }
 }

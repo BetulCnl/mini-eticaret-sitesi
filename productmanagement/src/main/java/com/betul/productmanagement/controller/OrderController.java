@@ -41,6 +41,18 @@ public class OrderController {
         return ResponseEntity.ok(order);
     }
 
+    @PatchMapping("/{id}/cancel")
+    public ResponseEntity<?> cancelOrder(@PathVariable Long id) {
+        User user = currentUserService.getCurrentUserOrThrow();
+        try {
+            OrderDTO order = orderService.cancelOrder(id, user);
+            return ResponseEntity.ok(order);
+        } catch (RuntimeException ex) {
+            // Refund FAILED_CLAIM veya başka hata durumunda mesajla dön
+            return ResponseEntity.badRequest().body(ex.getMessage());
+        }
+    }
+
     @GetMapping
     public ResponseEntity<Page<OrderDTO>> listMyOrders(@RequestParam(defaultValue = "0") int page,
                                                        @RequestParam(defaultValue = "10") int size) {
@@ -53,10 +65,12 @@ public class OrderController {
         OrderDTO order = orderService.getOrder(id);
         User current = currentUserService.getCurrentUserOrThrow();
         boolean isOwner = order.getUserId().equals(current.getId());
-        boolean isAdmin = authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
         if (!isOwner && !isAdmin) {
             return ResponseEntity.status(403).build();
         }
+
         return ResponseEntity.ok(order);
     }
-} 
+}

@@ -1,10 +1,13 @@
 package com.betul.paymentmanagement.service;
 
+import com.betul.paymentmanagement.dto.RefundRequestDTO;
+import com.betul.paymentmanagement.dto.RefundResponseDTO;
 import com.betul.paymentmanagement.dto.PaymentRequestDTO;
 import com.betul.paymentmanagement.dto.PaymentResponseDTO;
 import com.betul.paymentmanagement.enums.PaymentStatus;
 import org.springframework.stereotype.Service;
 
+import java.util.Random;
 import java.util.UUID;
 
 @Service
@@ -30,5 +33,13 @@ public class PaymentProcessingService {
 
         // Create and return the response DTO
         return new PaymentResponseDTO(randomTransactionId, finalStatus, "Payment processed by stateless service.");
+
+    }
+    public RefundResponseDTO processRefund(RefundRequestDTO request) {
+        boolean success = new Random().nextBoolean(); // rastgele true/false
+        String claimStatus = success ? "SUCCESS_CLAIM" : "FAILED_CLAIM";
+        String message = success ? "Refund başarılı" : "Refund başarısız";
+
+        return new RefundResponseDTO(request.getOrderId(), claimStatus, message);
     }
 }

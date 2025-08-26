@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Siparişlerim</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .container {
+            margin-top: 50px;
+        }
+        .table thead th {
+            background-color: #343a40;
+            color: white;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <h3>Siparişlerim</h3>
+            <div>
+                <a href="/products.html" class="btn btn-primary">Ürünlere Geri Dön</a>
+                <button id="logoutButton" class="btn btn-danger">Çıkış Yap</button>
+            </div>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped table-hover">
+                <thead>
+                <tr>
+                    <th>Sipariş ID</th>
+                    <th>Tarih</th>
+                    <th>Durum</th>
+                    <th>Toplam Tutar</th>
+                    <th>Ürünler</th>
+                    <th>İşlem</th>
+                </tr>
+                </thead>
+                <tbody id="orders-table-body">
+                <!-- Siparişler buraya eklenecek -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login.html';
+            return;
+        }
+
+        fetch('/api/orders', {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => {
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem('token');
+                    window.location.href = '/login.html';
+                    return Promise.reject(new Error('Yetkilendirme hatası. Lütfen tekrar giriş yapın.'));
+                }
+                if (!response.ok) {
+                    throw new Error('Siparişler getirilirken bir hata oluştu.');
+                }
+                return response.json();
+            })
+            .then(data => {
+                const tableBody = document.getElementById('orders-table-body');
+                if (data && data.content && data.content.length > 0) {
+                    data.content.forEach(order => {
+                        const itemsDetails = order.items
+                            .map(item => `${item.productName} (x${item.quantity}) - ${item.unitPrice.toFixed(2)} TL`)
+                            .join('<br>');
+
+                        let actionButton = '';
+                        if (order.orderStatus !== 'CANCELLED') {
+                            actionButton = `<button class="btn btn-sm btn-danger cancel-btn" data-id="${order.id}">İptal Et</button>`;
+                        } else {
+                            actionButton = `<span class="text-muted">İptal Edildi</span>`;
+                        }
+
+                        const row = `
+                    <tr>
+                        <td>${order.id}</td>
+                        <td>${new Date(order.createdAt).toLocaleDateString()}</td>
+                        <td><span class="badge bg-info">${order.orderStatus}</span></td>
+                        <td>${order.totalAmount.toFixed(2)} TL</td>
+                        <td>${itemsDetails}</td>
+                        <td>${actionButton}</td>
+                    </tr>
+                `;
+                        tableBody.innerHTML += row;
+                    });
+
+                    document.querySelectorAll('.cancel-btn').forEach(btn => {
+                        btn.addEventListener('click', function () {
+                            const orderId = this.dataset.id;
+                            const row = this.closest('tr');
+                            if (confirm("Bu siparişi iptal etmek istediğinize emin misiniz?")) {
+                                fetch(`/api/orders/${orderId}/cancel`, {
+                                    method: 'PATCH',
+                                    headers: {
+                                        'Authorization': 'Bearer ' + token,
+                                        'Content-Type': 'application/json'
+                                    }
+                                })
+                                    .then(res => {
+                                        if (!res.ok) throw new Error("Sipariş iptal edilemedi");
+                                        return res.json();
+                                    })
+                                    .then(updatedOrder => {
+                                        row.querySelector('td:nth-child(3) .badge').textContent = updatedOrder.orderStatus;
+                                        row.querySelector('td:nth-child(6)').innerHTML = '<span class="text-muted">İptal Edildi</span>';
+                                    })
+                                    .catch(err => alert(err.message));
+                            }
+                        });
+                    });
+                } else {
+                    tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Henüz siparişiniz bulunmamaktadır.</td></tr>';
+                }
+            })
+            .catch(error => {
+                console.error('Hata:', error);
+                const tableBody = document.getElementById('orders-table-body');
+                tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">${error.message}</td></tr>`;
+            });
+
+        document.getElementById('logoutButton').addEventListener('click', () => {
+            localStorage.removeItem('token');
+            window.location.href = '/login.html';
+        });
+    });
+</script>
+
+</body>
+</html>

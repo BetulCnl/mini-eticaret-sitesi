@@ -72,6 +72,7 @@ public class SecurityConfig {
                         .requestMatchers("/products.html").permitAll()
                         .requestMatchers("/cart.html").permitAll()
                         .requestMatchers("/purchase.html").permitAll()
+                        .requestMatchers("/myOrders.html").permitAll()
 
                         // API endpointleri
                         .requestMatchers("/api/auth/**").permitAll()

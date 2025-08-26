@@ -3,5 +3,7 @@ package com.betul.paymentmanagement.enums;
 public enum PaymentStatus {
     PENDING,
     SUCCESS,
-    FAILED
+    FAILED,
+    SUCCESS_CLAIM,
+    FAILED_CLAIM
 }

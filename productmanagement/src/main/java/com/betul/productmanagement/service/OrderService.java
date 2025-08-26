@@ -4,6 +4,8 @@ import com.betul.productmanagement.client.PaymentServiceClient;
 import com.betul.productmanagement.dto.OrderDTO;
 import com.betul.productmanagement.dto.PaymentRequestDTO;
 import com.betul.productmanagement.dto.PaymentResponseDTO;
+import com.betul.productmanagement.dto.RefundRequestDTO;
+import com.betul.productmanagement.dto.RefundResponseDTO;
 import com.betul.productmanagement.entity.*;
 import com.betul.productmanagement.enums.OrderStatus;
 import com.betul.productmanagement.enums.PaymentStatus;
@@ -14,12 +16,15 @@ import com.betul.productmanagement.repository.OrderRepository;
 import com.betul.productmanagement.repository.PaymentTransactionRepository;
 import com.betul.productmanagement.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -37,6 +42,7 @@ public class OrderService {
     private final PaymentServiceClient paymentServiceClient;
     private final PaymentTransactionService paymentTransactionService;
     private final PaymentTransactionRepository paymentTransactionRepository;
+    private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
 
     @Transactional
     public OrderDTO checkout(User user) {
@@ -101,41 +107,33 @@ public class OrderService {
             throw new IllegalStateException("Only PENDING orders can be processed.");
         }
 
-        // 1. Create PENDING transaction
-
-        // 2. Prepare request for payment service
         PaymentRequestDTO paymentRequest = PaymentRequestDTO.builder()
                 .orderId(order.getId())
                 .amount(order.getTotalAmount())
                 .paymentType(PaymentType.PURCHASE)
-                .paymentStatus(intendedStatus) // Pass intended status
+                .paymentStatus(intendedStatus)
                 .build();
 
         PaymentTransaction transaction = paymentTransactionService.initiatePayment(paymentRequest);
 
         try {
             PaymentResponseDTO paymentResponse = paymentServiceClient.createPayment(paymentRequest);
-
-            // 3. Update our transaction with the final status from payment service
             transaction.setStatus(paymentResponse.getStatus());
             paymentTransactionRepository.save(transaction);
 
-            // 4. Update order based on final status
             if (paymentResponse.getStatus() == PaymentStatus.SUCCESS) {
                 order.setOrderStatus(OrderStatus.COMPLETED);
-                cartItemRepository.deleteByUser(user); // Clear cart on success
+                cartItemRepository.deleteByUser(user);
             } else {
                 order.setOrderStatus(OrderStatus.FAILED);
                 revertStock(order);
             }
         } catch (Exception e) {
-            // If payment service call fails, mark everything as FAILED
             transaction.setStatus(PaymentStatus.FAILED);
             paymentTransactionRepository.save(transaction);
             order.setOrderStatus(OrderStatus.FAILED);
             revertStock(order);
             return OrderMapper.toOrderDTO(order);
-            //throw new RuntimeException("Payment service is currently unavailable. Please try again later.", e);
         }
 
         Order savedOrder = orderRepository.save(order);
@@ -151,9 +149,74 @@ public class OrderService {
         }
     }
 
+    @Transactional
+    public OrderDTO cancelOrder(Long orderId, User user) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        if (!order.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Bu siparişi iptal etme yetkiniz yok");
+        }
+
+        if (order.getOrderStatus() == OrderStatus.CANCELLED || order.getOrderStatus() == OrderStatus.FAILED) {
+            throw new RuntimeException("Bu sipariş iptal edilemez");
+        }
+
+        // Refund isteği oluştur
+        RefundRequestDTO refundReq = new RefundRequestDTO(order.getId(), order.getTotalAmount());
+        RefundResponseDTO refundRes;
+
+        try {
+            refundRes = paymentServiceClient.requestRefund(refundReq);
+        } catch (Exception e) {
+            // Refund servisine bağlanamazsa FAILED_CLAIM kaydı (ayrı transaction)
+            saveTransactionInNewTx(order.getId(), order.getTotalAmount(), PaymentStatus.FAILED_CLAIM);
+            throw new RuntimeException("Refund servisine bağlanırken hata oluştu: " + e.getMessage());
+        }
+
+        // Transaction tablosuna refund sonucunu kaydet (ayrı transaction)
+        PaymentStatus txStatus = "SUCCESS_CLAIM".equals(refundRes.getClaimStatus()) ?
+                PaymentStatus.SUCCESS_CLAIM : PaymentStatus.FAILED_CLAIM;
+        saveTransactionInNewTx(order.getId(), order.getTotalAmount(), txStatus);
+
+        // Refund başarısızsa exception fırlat
+        if (txStatus == PaymentStatus.FAILED_CLAIM) {
+            throw new RuntimeException("İptal işlemi gerçekleştirilemedi: " + refundRes.getMessage());
+        }
+
+        // Refund başarılıysa order iptal et ve stokları geri ekle
+        order.setOrderStatus(OrderStatus.CANCELLED);
+        orderRepository.save(order);
+
+        for (OrderItem item : order.getItems()) {
+            productRepository.findById(item.getProductId()).ifPresent(product -> {
+                product.setStock(product.getStock() + item.getQuantity());
+                productRepository.save(product);
+            });
+        }
+
+        return OrderMapper.toOrderDTO(order);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void saveTransactionInNewTx(Long orderId, BigDecimal amount, PaymentStatus status) {
+        PaymentTransaction tx = new PaymentTransaction();
+        tx.setOrderId(orderId);
+        tx.setAmount(amount);
+        tx.setStatus(status);
+        tx.setCreatedAt(Instant.now());
+        paymentTransactionRepository.save(tx);
+    }
+
     public Page<OrderDTO> listUserOrders(User user, int page, int size) {
+        if (user == null) {
+            logger.warn("User object is null in listUserOrders. Cannot fetch orders.");
+            return Page.empty();
+        }
+        logger.info("Fetching orders for User ID: {}", user.getId());
         Pageable pageable = PageRequest.of(page, size);
         Page<Order> orderPage = orderRepository.findByUser(user, pageable);
+        logger.info("Found {} orders for User ID: {}", orderPage.getTotalElements(), user.getId());
         List<OrderDTO> dtoList = orderPage.getContent().stream()
                 .map(OrderMapper::toOrderDTO)
                 .collect(Collectors.toList());

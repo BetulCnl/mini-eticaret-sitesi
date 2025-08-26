@@ -21,6 +21,7 @@ public class OrderMapper {
         dto.setOrderStatus(order.getOrderStatus());
         dto.setUserId(order.getUser().getId());
 
+
         if (order.getItems() != null) {
             dto.setItems(order.getItems().stream()
                     .map(OrderMapper::toOrderItemDTO)

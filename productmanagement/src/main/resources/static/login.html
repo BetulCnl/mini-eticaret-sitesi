@@ -2,54 +2,145 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Giriş Yap</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giriş / Kayıt</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f8f9fa; margin:0; padding:0; }
+        .container { max-width: 400px; margin: 80px auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1);}
+        h2 { text-align: center; margin-bottom: 20px; }
+        form { display: flex; flex-direction: column; gap: 12px; }
+        input { padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px; font-size: 16px; border:none; border-radius: 4px; background-color: #007bff; color: #fff; cursor: pointer; }
+        button:hover { background-color: #0069d9; }
+        .toggle-btn { background-color: #6c757d; margin-top: 10px; }
+        .toggle-btn:hover { background-color: #5a6268; }
+        .message { text-align: center; margin-bottom: 10px; color: green; }
+        .error { color: red; text-align: center; margin-bottom: 10px; }
+    </style>
 </head>
 <body>
-<h1>Giriş Yap</h1>
-<form id="loginForm">
-    <input type="email" id="email" placeholder="Email" required><br>
-    <input type="password" id="password" placeholder="Şifre" required><br>
-    <button type="submit">Giriş</button>
-</form>
+<div class="container">
+    <h2 id="formTitle">Giriş Yap</h2>
+
+    <div class="message" id="successMsg"></div>
+    <div class="error" id="errorMsg"></div>
+
+    <!-- Login Form -->
+    <form id="loginForm">
+        <input type="email" id="loginEmail" placeholder="Email" required>
+        <input type="password" id="loginPassword" placeholder="Şifre" required>
+        <button type="submit">Giriş Yap</button>
+    </form>
+
+    <!-- Register Form -->
+    <form id="registerForm" style="display:none;">
+        <input type="text" id="regName" placeholder="İsim" required>
+        <input type="email" id="regEmail" placeholder="Email" required>
+        <input type="password" id="regPassword" placeholder="Şifre" required>
+        <button type="submit">Kayıt Ol</button>
+    </form>
+
+    <button class="toggle-btn" id="toggleFormBtn">Hesabınız yok mu? Kayıt Ol</button>
+</div>
 
 <script>
-    const form = document.getElementById('loginForm');
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    const toggleBtn = document.getElementById('toggleFormBtn');
+    const formTitle = document.getElementById('formTitle');
+    const successMsg = document.getElementById('successMsg');
+    const errorMsg = document.getElementById('errorMsg');
+    const baseUrl = 'http://localhost:8080/api/auth';
 
-    form.addEventListener('submit', async (e) => {
+    // Toggle login/register forms
+    toggleBtn.addEventListener('click', () => {
+        if(loginForm.style.display === 'none') {
+            loginForm.style.display = 'flex';
+            registerForm.style.display = 'none';
+            formTitle.textContent = 'Giriş Yap';
+            toggleBtn.textContent = 'Hesabınız yok mu? Kayıt Ol';
+            successMsg.textContent = '';
+            errorMsg.textContent = '';
+        } else {
+            loginForm.style.display = 'none';
+            registerForm.style.display = 'flex';
+            formTitle.textContent = 'Kayıt Ol';
+            toggleBtn.textContent = 'Zaten hesabınız var mı? Giriş Yap';
+            successMsg.textContent = '';
+            errorMsg.textContent = '';
+        }
+    });
+
+    // Login işlemi
+    loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        errorMsg.textContent = '';
+        successMsg.textContent = '';
 
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
 
         try {
-            const response = await fetch('http://localhost:8080/api/auth/login', {
+            const res = await fetch(`${baseUrl}/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
             });
 
-            if (!response.ok) {
-                alert("Giriş başarısız!");
-                return;
+            if(!res.ok) {
+                const err = await res.json();
+                throw new Error(err.message || 'Giriş başarısız!');
             }
 
-            const data = await response.json();
-
-            // JWT token'ı ve kullanıcı bilgilerini localStorage'a kaydet
+            const data = await res.json();
             localStorage.setItem('token', data.token);
             localStorage.setItem('userName', data.name);
             localStorage.setItem('userEmail', data.email);
 
-            // Giriş başarılı → products.html sayfasına yönlendir
-            window.location.href = 'products.html';
+            successMsg.textContent = 'Giriş başarılı! Yönlendiriliyorsunuz...';
+            setTimeout(() => { window.location.href = 'products.html'; }, 1000);
 
-        } catch (error) {
-            console.error(error);
-            alert("Sunucu hatası!");
+        } catch(err) {
+            console.error(err);
+            errorMsg.textContent = err.message;
+        }
+    });
+
+    // Register işlemi
+    registerForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        errorMsg.textContent = '';
+        successMsg.textContent = '';
+
+        const name = document.getElementById('regName').value;
+        const email = document.getElementById('regEmail').value;
+        const password = document.getElementById('regPassword').value;
+
+        try {
+            const res = await fetch(`${baseUrl}/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email, password })
+            });
+
+            if(!res.ok) {
+                const err = await res.json();
+                throw new Error(err.message || 'Kayıt başarısız!');
+            }
+
+            const data = await res.json();
+            successMsg.textContent = 'Kayıt başarılı! Lütfen giriş yapın.';
+            // Kayıt sonrası login formuna geç
+            toggleBtn.click();
+
+        } catch(err) {
+            console.error(err);
+            errorMsg.textContent = err.message;
         }
     });
 </script>
 </body>
 </html>
+
 
 

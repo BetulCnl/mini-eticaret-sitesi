@@ -44,13 +44,24 @@
             padding: 15px 30px;
             font-size: 16px;
         }
+        /* Geri dön butonu stili */
+        .back-btn {
+            background-color: #007bff;
+            color: white;
+            padding: 8px 15px;
+            margin-left: 10px;
+        }
     </style>
 </head>
 <body>
 <header style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background-color: #f1f1f1; margin-bottom: 20px;">
-  <div id="userInfo"></div>
-  <button onclick="logout()">Çıkış Yap</button>
+    <div id="userInfo"></div>
+    <div>
+        <button onclick="logout()">Çıkış Yap</button>
+        <button class="back-btn" onclick="goBack()">Ürünlere Geri Dön</button>
+    </div>
 </header>
+
 <h1 style="text-align:center;">Sepetim</h1>
 <table>
     <thead>
@@ -78,7 +89,7 @@
         const userEmail = localStorage.getItem('userEmail');
 
         if (userName && userEmail) {
-        userInfo.innerHTML = `<strong>Kullanıcı:</strong> ${userName} (${userEmail})`;
+            userInfo.innerHTML = `<strong>Kullanıcı:</strong> ${userName} (${userEmail})`;
         }
     });
 
@@ -89,26 +100,24 @@
         window.location.href = 'login.html';
     }
 
-    const token = localStorage.getItem('token'); // JWT token
+    function goBack() {
+        window.location.href = 'products.html';
+    }
 
+    const token = localStorage.getItem('token'); // JWT token
     if (!token) {
         window.location.href = 'login.html'; // Token yoksa login sayfasına yönlendir
     }
 
-    // Sepet verilerini getir ve tabloya ekle
     async function loadCart() {
         try {
             const response = await fetch('http://localhost:8080/api/cart', {
-                headers: {
-                    'Authorization': 'Bearer ' + token
-                }
+                headers: { 'Authorization': 'Bearer ' + token }
             });
-            if (response.status === 401) {
-                 window.location.href = 'login.html';
-            }
+            if (response.status === 401) window.location.href = 'login.html';
             if (!response.ok) throw new Error("Sepet yüklenemedi");
-            const cartItems = await response.json();
 
+            const cartItems = await response.json();
             const tbody = document.getElementById('cartItems');
             tbody.innerHTML = '';
 
@@ -129,7 +138,7 @@
                 <td>
                     <button class="delete-btn" onclick="removeItem(${item.id})">Sil</button>
                 </td>
-            `;
+                `;
                 tbody.appendChild(tr);
             });
 
@@ -139,7 +148,6 @@
         }
     }
 
-    // Miktarı güncelle
     async function updateQuantity(id, quantity) {
         try {
             const response = await fetch(`http://localhost:8080/api/cart/${id}`, {
@@ -158,14 +166,11 @@
         }
     }
 
-    // Ürünü sil
     async function removeItem(id) {
         try {
             const response = await fetch(`http://localhost:8080/api/cart/${id}`, {
                 method: 'DELETE',
-                headers: {
-                    'Authorization': 'Bearer ' + token
-                }
+                headers: { 'Authorization': 'Bearer ' + token }
             });
             if (!response.ok) throw new Error("Ürün silinemedi");
             loadCart();
@@ -175,7 +180,6 @@
         }
     }
 
-    // Checkout işlemini yap ve sonucu bildir
     async function checkout() {
         if (document.getElementById('cartItems').children.length === 0) {
             alert("Sepetiniz boş. Lütfen ödeme yapmak için ürün ekleyin.");
@@ -189,21 +193,15 @@
         try {
             const response = await fetch('http://localhost:8080/api/orders', {
                 method: 'POST',
-                headers: {
-                    'Authorization': 'Bearer ' + token
-                }
+                headers: { 'Authorization': 'Bearer ' + token }
             });
 
-            // Cevap başarılı değilse, JSON'dan hata mesajını oku ve fırlat
             if (!response.ok) {
                 const errorResponse = await response.json();
-                // Bizim backend'den gelen hata formatımız { "error": "mesaj" } şeklinde olabilir
-                // veya doğrudan bir mesaj dönebilir. Esnek bir şekilde yakalayalım.
                 const message = errorResponse.error || errorResponse.message || "Bilinmeyen bir hata oluştu.";
                 throw new Error(message);
             }
 
-            // Başarılı cevap
             const order = await response.json();
             window.location.href = `purchase.html?orderId=${order.id}`;
 
@@ -216,7 +214,6 @@
         }
     }
 
-    // Sayfa yüklendiğinde sepeti yükle
     window.onload = loadCart;
 </script>
 </body>
