@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Ödeme</title>
+</head>
+<body>
+<header style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background-color: #f1f1f1; margin-bottom: 20px;">
+    <div id="userInfo"></div>
+    <button onclick="logout()">Çıkış Yap</button>
+</header>
+<h1>Ödeme Sayfası</h1>
+<p id="order-info">Sipariş ID: ...</p>
+<button onclick="handlePayment('SUCCESS')">SUCCESS</button>
+<button onclick="handlePayment('FAILED')">FAILED</button>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const userInfo = document.getElementById('userInfo');
+        const userName = localStorage.getItem('userName');
+        const userEmail = localStorage.getItem('userEmail');
+
+        if (userName && userEmail) {
+            userInfo.innerHTML = `<strong>Kullanıcı:</strong> ${userName} (${userEmail})`;
+        }
+    });
+
+    function logout() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('userEmail');
+        window.location.href = 'login.html';
+    }
+
+    const token = localStorage.getItem('token');
+    const urlParams = new URLSearchParams(window.location.search);
+    const orderId = urlParams.get('orderId');
+
+    if (!token) {
+        window.location.href = 'login.html';
+    }
+
+    if (!orderId) {
+        document.getElementById('order-info').textContent = "Sipariş ID bulunamadı!";
+        document.querySelectorAll('button').forEach(b => b.disabled = true);
+    } else {
+        document.getElementById('order-info').textContent = `Sipariş ID: ${orderId}`;
+    }
+
+    async function handlePayment(status) {
+        let endpoint = '';
+        // ProductManagement Controller endpoint
+        if (status === 'SUCCESS') {
+            endpoint = 'complete';
+        } else {
+            endpoint = 'fail';
+        }
+        const url = `http://localhost:8080/api/orders/${orderId}/${endpoint}`;
+
+        const requestBody = {
+            orderId: parseInt(orderId),
+            amount: 100.0, // örnek miktar, gerekirse dinamik
+            paymentStatus: status,
+            paymentType: "CREDIT_CARD"
+        };
+        console.log(requestBody);
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                const errorMessage = errorData && errorData.message ? errorData.message : "İşlem gerçekleştirilemedi.";
+                throw new Error(errorMessage);
+            }
+
+            const resultMessage = status === 'SUCCESS'
+                ? `Siparişiniz (ID: ${orderId}) başarıyla tamamlandı!`
+                : `Ödeme başarısız oldu. Siparişiniz (ID: ${orderId}) iptal edildi.`;
+
+            alert(resultMessage);
+            window.location.href = 'products.html';
+
+        } catch (error) {
+            console.error("Ödeme işlenirken hata:", error);
+            alert("Bir hata oluştu: " + error.message);
+        }
+    }
+</script>
+
+</body>
+</html>
+

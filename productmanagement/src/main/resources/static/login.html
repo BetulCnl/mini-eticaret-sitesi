@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Giriş Yap</title>
+</head>
+<body>
+<h1>Giriş Yap</h1>
+<form id="loginForm">
+    <input type="email" id="email" placeholder="Email" required><br>
+    <input type="password" id="password" placeholder="Şifre" required><br>
+    <button type="submit">Giriş</button>
+</form>
+
+<script>
+    const form = document.getElementById('loginForm');
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        try {
+            const response = await fetch('http://localhost:8080/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            if (!response.ok) {
+                alert("Giriş başarısız!");
+                return;
+            }
+
+            const data = await response.json();
+
+            // JWT token'ı ve kullanıcı bilgilerini localStorage'a kaydet
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('userName', data.name);
+            localStorage.setItem('userEmail', data.email);
+
+            // Giriş başarılı → products.html sayfasına yönlendir
+            window.location.href = 'products.html';
+
+        } catch (error) {
+            console.error(error);
+            alert("Sunucu hatası!");
+        }
+    });
+</script>
+</body>
+</html>
+
+
