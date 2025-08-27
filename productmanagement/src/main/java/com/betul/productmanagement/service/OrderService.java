@@ -24,7 +24,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -162,25 +161,29 @@ public class OrderService {
             throw new RuntimeException("Bu sipariş iptal edilemez");
         }
 
-        // Refund isteği oluştur
         RefundRequestDTO refundReq = new RefundRequestDTO(order.getId(), order.getTotalAmount());
-        RefundResponseDTO refundRes;
+        RefundResponseDTO refundRes = null;
 
         try {
+            // PaymentManagement servisine çağrı
             refundRes = paymentServiceClient.requestRefund(refundReq);
         } catch (Exception e) {
-            // Refund servisine bağlanamazsa FAILED_CLAIM kaydı (ayrı transaction)
-            saveTransactionInNewTx(order.getId(), order.getTotalAmount(), PaymentStatus.FAILED_CLAIM);
+            // Servise bağlanamazsa ayrı transaction ile FAILED_CLAIM kaydet
+            paymentTransactionService.saveTransactionInNewTx(
+                    order.getId(), order.getTotalAmount(), PaymentStatus.FAILED_CLAIM
+            );
             throw new RuntimeException("Refund servisine bağlanırken hata oluştu: " + e.getMessage());
         }
 
-        // Transaction tablosuna refund sonucunu kaydet (ayrı transaction)
+        // PaymentManagement’tan gelen random claim değerini yakala
         PaymentStatus txStatus = "SUCCESS_CLAIM".equals(refundRes.getClaimStatus()) ?
                 PaymentStatus.SUCCESS_CLAIM : PaymentStatus.FAILED_CLAIM;
-        saveTransactionInNewTx(order.getId(), order.getTotalAmount(), txStatus);
 
-        // Refund başarısızsa exception fırlat
+        // Sonucu ayrı transaction ile kaydet
+        paymentTransactionService.saveTransactionInNewTx(order.getId(), order.getTotalAmount(), txStatus);
+
         if (txStatus == PaymentStatus.FAILED_CLAIM) {
+            // Refund başarısızsa exception fırlat
             throw new RuntimeException("İptal işlemi gerçekleştirilemedi: " + refundRes.getMessage());
         }
 
@@ -196,16 +199,6 @@ public class OrderService {
         }
 
         return OrderMapper.toOrderDTO(order);
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void saveTransactionInNewTx(Long orderId, BigDecimal amount, PaymentStatus status) {
-        PaymentTransaction tx = new PaymentTransaction();
-        tx.setOrderId(orderId);
-        tx.setAmount(amount);
-        tx.setStatus(status);
-        tx.setCreatedAt(Instant.now());
-        paymentTransactionRepository.save(tx);
     }
 
     public Page<OrderDTO> listUserOrders(User user, int page, int size) {

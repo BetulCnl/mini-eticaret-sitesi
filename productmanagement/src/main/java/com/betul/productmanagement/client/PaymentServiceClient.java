@@ -21,7 +21,7 @@ public interface PaymentServiceClient {
     PaymentResponseDTO createPayment(@RequestBody PaymentRequestDTO request);
 //FEIN CLIENT BURADA ORDERSERVICETEN GELEN METOT ÇAĞRISINI ALIP YENİ BİR HTTP İSTEĞİNE DÖNÜŞTÜRÜRÜR DİĞER MİKROSERVİSE YOLLAR
 
-    @PostMapping("/api/v1/payments/refund") // yeni refund endpoint
+    @PostMapping("payments/refund") // yeni refund endpoint
     RefundResponseDTO requestRefund(RefundRequestDTO request);
 }
 // service discovery load balancing burada geçiyormuş
