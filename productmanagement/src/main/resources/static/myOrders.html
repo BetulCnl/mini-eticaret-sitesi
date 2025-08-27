@@ -21,6 +21,9 @@
             justify-content: space-between;
             align-items: center;
         }
+        .pagination-container {
+            margin-top: 15px;
+        }
     </style>
 </head>
 <body>
@@ -50,6 +53,13 @@
                 <!-- Siparişler buraya eklenecek -->
                 </tbody>
             </table>
+
+            <!-- Pagination -->
+            <div class="pagination-container d-flex justify-content-center align-items-center gap-2">
+                <button id="prevPageBtn" class="btn btn-secondary btn-sm">« Önceki</button>
+                <span id="pageIndicator"></span>
+                <button id="nextPageBtn" class="btn btn-secondary btn-sm">Sonraki »</button>
+            </div>
         </div>
     </div>
 </div>
@@ -62,86 +72,121 @@
             return;
         }
 
-        fetch('/api/orders', {
-            method: 'GET',
-            headers: {
-                'Authorization': 'Bearer ' + token,
-                'Content-Type': 'application/json'
-            }
-        })
-            .then(response => {
-                if (response.status === 401 || response.status === 403) {
-                    localStorage.removeItem('token');
-                    window.location.href = '/login.html';
-                    return Promise.reject(new Error('Yetkilendirme hatası. Lütfen tekrar giriş yapın.'));
+        let currentPage = 0;
+        const pageSize = 10;
+
+        function loadOrders(page) {
+            fetch(`/api/orders?page=${page}&size=${pageSize}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
                 }
-                if (!response.ok) {
-                    throw new Error('Siparişler getirilirken bir hata oluştu.');
-                }
-                return response.json();
             })
-            .then(data => {
-                const tableBody = document.getElementById('orders-table-body');
-                if (data && data.content && data.content.length > 0) {
-                    data.content.forEach(order => {
-                        const itemsDetails = order.items
-                            .map(item => `${item.productName} (x${item.quantity}) - ${item.unitPrice.toFixed(2)} TL`)
-                            .join('<br>');
+                .then(response => {
+                    if (response.status === 401 || response.status === 403) {
+                        localStorage.removeItem('token');
+                        window.location.href = '/login.html';
+                        return Promise.reject(new Error('Yetkilendirme hatası. Lütfen tekrar giriş yapın.'));
+                    }
+                    if (!response.ok) {
+                        throw new Error('Siparişler getirilirken bir hata oluştu.');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const tableBody = document.getElementById('orders-table-body');
+                    tableBody.innerHTML = '';
 
-                        let actionButton = '';
-                        if (order.orderStatus !== 'CANCELLED') {
-                            actionButton = `<button class="btn btn-sm btn-danger cancel-btn" data-id="${order.id}">İptal Et</button>`;
-                        } else {
-                            actionButton = `<span class="text-muted">İptal Edildi</span>`;
-                        }
+                    if (data && data.content && data.content.length > 0) {
+                        data.content.forEach(order => {
+                            const itemsDetails = order.items
+                                .map(item => `${item.productName} (x${item.quantity}) - ${item.unitPrice.toFixed(2)} TL`)
+                                .join('<br>');
 
-                        const row = `
-                    <tr>
-                        <td>${order.id}</td>
-                        <td>${new Date(order.createdAt).toLocaleDateString()}</td>
-                        <td><span class="badge bg-info">${order.orderStatus}</span></td>
-                        <td>${order.totalAmount.toFixed(2)} TL</td>
-                        <td>${itemsDetails}</td>
-                        <td>${actionButton}</td>
-                    </tr>
-                `;
-                        tableBody.innerHTML += row;
-                    });
-
-                    document.querySelectorAll('.cancel-btn').forEach(btn => {
-                        btn.addEventListener('click', function () {
-                            const orderId = this.dataset.id;
-                            const row = this.closest('tr');
-                            if (confirm("Bu siparişi iptal etmek istediğinize emin misiniz?")) {
-                                fetch(`/api/orders/${orderId}/cancel`, {
-                                    method: 'PATCH',
-                                    headers: {
-                                        'Authorization': 'Bearer ' + token,
-                                        'Content-Type': 'application/json'
-                                    }
-                                })
-                                    .then(res => {
-                                        if (!res.ok) throw new Error("Sipariş iptal edilemedi");
-                                        return res.json();
-                                    })
-                                    .then(updatedOrder => {
-                                        row.querySelector('td:nth-child(3) .badge').textContent = updatedOrder.orderStatus;
-                                        row.querySelector('td:nth-child(6)').innerHTML = '<span class="text-muted">İptal Edildi</span>';
-                                    })
-                                    .catch(err => alert(err.message));
+                            let actionButton = '';
+                            if (order.orderStatus !== 'CANCELLED') {
+                                actionButton = `<button class="btn btn-sm btn-danger cancel-btn" data-id="${order.id}">İptal Et</button>`;
+                            } else {
+                                actionButton = `<span class="text-muted">İptal Edildi</span>`;
                             }
-                        });
-                    });
-                } else {
-                    tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Henüz siparişiniz bulunmamaktadır.</td></tr>';
-                }
-            })
-            .catch(error => {
-                console.error('Hata:', error);
-                const tableBody = document.getElementById('orders-table-body');
-                tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">${error.message}</td></tr>`;
-            });
 
+                            const row = `
+                        <tr>
+                            <td>${order.id}</td>
+                            <td>${new Date(order.createdAt).toLocaleDateString()}</td>
+                            <td><span class="badge bg-info">${order.orderStatus}</span></td>
+                            <td>${order.totalAmount.toFixed(2)} TL</td>
+                            <td>${itemsDetails}</td>
+                            <td>${actionButton}</td>
+                        </tr>
+                        `;
+                            tableBody.innerHTML += row;
+                        });
+
+                        // Sayfa göstergesi (1-index)
+                        document.getElementById('pageIndicator').textContent = `Sayfa: ${data.number + 1} / ${data.totalPages}`;
+
+                        // Cancel butonları
+                        document.querySelectorAll('.cancel-btn').forEach(btn => {
+                            btn.addEventListener('click', function () {
+                                const orderId = this.dataset.id;
+                                const row = this.closest('tr');
+                                if (confirm("Bu siparişi iptal etmek istediğinize emin misiniz?")) {
+                                    fetch(`/api/orders/${orderId}/cancel`, {
+                                        method: 'PATCH',
+                                        headers: {
+                                            'Authorization': 'Bearer ' + token,
+                                            'Content-Type': 'application/json'
+                                        }
+                                    })
+                                        .then(res => {
+                                            if (!res.ok) throw new Error("Sipariş iptal edilemedi");
+                                            return res.json();
+                                        })
+                                        .then(updatedOrder => {
+                                            row.querySelector('td:nth-child(3) .badge').textContent = updatedOrder.orderStatus;
+                                            row.querySelector('td:nth-child(6)').innerHTML = '<span class="text-muted">İptal Edildi</span>';
+                                        })
+                                        .catch(err => alert(err.message));
+                                }
+                            });
+                        });
+
+                        // Sayfa butonlarını kontrol et
+                        document.getElementById('prevPageBtn').disabled = data.first;
+                        document.getElementById('nextPageBtn').disabled = data.last;
+
+                    } else {
+                        tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Henüz siparişiniz bulunmamaktadır.</td></tr>';
+                        document.getElementById('pageIndicator').textContent = '';
+                        document.getElementById('prevPageBtn').disabled = true;
+                        document.getElementById('nextPageBtn').disabled = true;
+                    }
+                })
+                .catch(error => {
+                    console.error('Hata:', error);
+                    const tableBody = document.getElementById('orders-table-body');
+                    tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">${error.message}</td></tr>`;
+                });
+        }
+
+        // Sayfa butonları eventleri
+        document.getElementById('prevPageBtn').addEventListener('click', () => {
+            if (currentPage > 0) {
+                currentPage--;
+                loadOrders(currentPage);
+            }
+        });
+        document.getElementById('nextPageBtn').addEventListener('click', () => {
+            currentPage++;
+            loadOrders(currentPage);
+        });
+
+        // İlk sayfayı yükle
+        loadOrders(currentPage);
+
+        // Logout
         document.getElementById('logoutButton').addEventListener('click', () => {
             localStorage.removeItem('token');
             window.location.href = '/login.html';
