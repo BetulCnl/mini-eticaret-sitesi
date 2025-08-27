@@ -1,6 +1,7 @@
 package com.betul.productmanagement.controller;
 
 import com.betul.productmanagement.dto.ProductCreateDTO;
+import com.betul.productmanagement.dto.UpdateStockRequest;
 import com.betul.productmanagement.entity.Product;
 import com.betul.productmanagement.service.ProductService;
 import jakarta.validation.Valid;
@@ -67,4 +68,22 @@ public class ProductController {
             return ResponseEntity.notFound().build();
         }
     }
+
+    @PatchMapping("/{id}/stock")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Product> updateStock(@PathVariable Long id, @RequestBody UpdateStockRequest request) {
+        Product updatedProduct = productService.updateStock(id, request.getStock());
+        return ResponseEntity.ok(updatedProduct);
+    }
+
+
+    //ID ile ürün güncelle
+    @PostMapping("/{id}/update")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Product> updateProduct(@PathVariable Long id, @Valid @RequestBody ProductCreateDTO dto) {
+        Product updatedProduct= productService.updateProduct(id, dto);
+        return ResponseEntity.ok(updatedProduct);
+    }
+
+
 }

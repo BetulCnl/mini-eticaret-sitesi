@@ -49,6 +49,6 @@ public class Order {
     //TODO: İhtiyaçlar: purchase sayfası olacak. purchase sayfasında iki buton, biri success diğeri fail ödeme geçmek. - TAMAMLANDI
     //TODO: PaymentTransaction entitysi ekle, bu entity siparişin durumunu tutacak. status: Success, Failed, Pending - TAMAMLANDI
     //TODO: payment işlemini ayrı bir payment management microserviceinde yapacağız feign client ile. - TAMAMLANDI
-    //TODO: myOrders sayfası olacak. orda siparişlerin listelenecek.
-    //TODO: myOrders sayfasında completed olan bir sipariş iptal edilebilecek.
+    //TODO: myOrders sayfası olacak. orda siparişlerin listelenecek. - TAMAMLANDI
+    //TODO: myOrders sayfasında completed olan bir sipariş iptal edilebilecek. - TAMAMLANDI
 }

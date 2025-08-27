@@ -65,6 +65,28 @@ public class ProductService {
     public void deleteProduct(Long id) {
         productRepository.deleteById(id);
     }
+
+    @CacheEvict(value = "products", allEntries = true)
+    public Product updateStock(Long productId, int newStock) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+        product.setStock(newStock);
+        return productRepository.save(product);
+    }
+
+    @CacheEvict (value = "products", allEntries = true)
+    public Product updateProduct(Long productId, ProductCreateDTO dto) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+        Category category = categoryRepository.findByName(dto.getCategoryName())
+                .orElseThrow(() -> new RuntimeException("Category not found"));
+        product.setName(dto.getName());
+        product.setDescription(dto.getDescription());
+        product.setPrice(dto.getPrice());
+        product.setCategory(category);
+        return productRepository.save(product);
+    }
+
 }
 
 
