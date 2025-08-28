@@ -1,0 +1,60 @@
+version: "3.9"  # veya 3.8 / 3.7
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    environment:
+      POSTGRES_DB: pmdb
+      POSTGRES_USER: pmuser
+      POSTGRES_PASSWORD: pmpassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pmuser -d pmdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  productmanagement:
+    build: ./productmanagement
+    container_name: productmanagement
+    ports:
+      - "8082:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pmdb
+      SPRING_DATASOURCE_USERNAME: pmuser
+      SPRING_DATASOURCE_PASSWORD: pmpassword
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  paymentmanagement:
+    build: ./paymentmanagement
+    container_name: paymentmanagement
+    ports:
+      - "8091:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pmdb
+      SPRING_DATASOURCE_USERNAME: pmuser
+      SPRING_DATASOURCE_PASSWORD: pmpassword
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+
+volumes:
+  pgdata:
+
+networks:
+  app-network:

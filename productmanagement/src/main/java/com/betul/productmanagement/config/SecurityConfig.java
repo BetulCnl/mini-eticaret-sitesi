@@ -83,8 +83,12 @@ public class SecurityConfig {
                         // H2 Console
                         .requestMatchers("/h2-console/**").permitAll()
 
-                        // Geri kalan her şey girişli kullanıcı için
+                        //Geri kalan her şey girişli kullanıcı için
                         .anyRequest().authenticated()
+                        //----------------------------------
+                        // Geri kalan tüm endpointler
+                        //.anyRequest().permitAll() // <-- değişiklik
+                        //-------------------------------
                 )
                 .headers(headers -> headers.frameOptions(frame -> frame.disable()))
                 .authenticationProvider(authenticationProvider())
@@ -99,6 +103,8 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(List.of("*"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
+        //configuration.setAllowedOrigins(List.of("http://localhost:8082")); // frontend host portunu belirt
+        configuration.setAllowCredentials(true); // cookie/JWT iletimini sağlar
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
