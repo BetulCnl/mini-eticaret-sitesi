@@ -50,7 +50,7 @@
     const formTitle = document.getElementById('formTitle');
     const successMsg = document.getElementById('successMsg');
     const errorMsg = document.getElementById('errorMsg');
-    const baseUrl = 'http://localhost:8080/api/auth';
+    const baseUrl = /*[[@{/api/auth}]]*/ '/api/auth';
 
     // Toggle login/register forms
     toggleBtn.addEventListener('click', () => {

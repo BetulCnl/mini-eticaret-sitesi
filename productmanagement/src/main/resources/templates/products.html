@@ -77,7 +77,7 @@
 
   let page = 0;
   const size = 12;
-  const base = window.location.origin;
+  const base = /*[[@{/}]]*/ '/';
 
   async function fetchProducts() {
     const search = document.getElementById('search').value.trim();

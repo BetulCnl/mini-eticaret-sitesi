@@ -1,56 +1,19 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="tr" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <title>Sepetim</title>
     <style>
-        body {
-            font-family: sans-serif;
-        }
-        table {
-            border-collapse: collapse;
-            width: 80%;
-            margin: 20px auto;
-        }
-        th, td {
-            border: 1px solid #ccc;
-            padding: 12px;
-            text-align: center;
-        }
-        th {
-            background-color: #f2f2f2;
-        }
-        input[type=number] {
-            width: 60px;
-            padding: 5px;
-        }
-        button {
-            padding: 8px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .delete-btn {
-            background-color: #f44336;
-            color: white;
-        }
-        .checkout-container {
-            text-align: center;
-            margin-top: 20px;
-        }
-        .checkout-btn {
-            background-color: #4CAF50;
-            color: white;
-            padding: 15px 30px;
-            font-size: 16px;
-        }
-        /* Geri dön butonu stili */
-        .back-btn {
-            background-color: #007bff;
-            color: white;
-            padding: 8px 15px;
-            margin-left: 10px;
-        }
+        body { font-family: sans-serif; }
+        table { border-collapse: collapse; width: 80%; margin: 20px auto; }
+        th, td { border: 1px solid #ccc; padding: 12px; text-align: center; }
+        th { background-color: #f2f2f2; }
+        input[type=number] { width: 60px; padding: 5px; }
+        button { padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; }
+        .delete-btn { background-color: #f44336; color: white; }
+        .checkout-container { text-align: center; margin-top: 20px; }
+        .checkout-btn { background-color: #4CAF50; color: white; padding: 15px 30px; font-size: 16px; }
+        .back-btn { background-color: #007bff; color: white; padding: 8px 15px; margin-left: 10px; }
     </style>
 </head>
 <body>
@@ -74,7 +37,6 @@
     </tr>
     </thead>
     <tbody id="cartItems">
-    <!-- Sepet ürünleri buraya JS ile eklenecek -->
     </tbody>
 </table>
 
@@ -82,39 +44,37 @@
     <button class="checkout-btn" onclick="checkout()">Ödemeye Geç</button>
 </div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const userInfo = document.getElementById('userInfo');
-        const userName = localStorage.getItem('userName');
-        const userEmail = localStorage.getItem('userEmail');
+<script th:inline="javascript">
+    const userInfo = document.getElementById('userInfo');
+    const userName = localStorage.getItem('userName');
+    const userEmail = localStorage.getItem('userEmail');
 
-        if (userName && userEmail) {
-            userInfo.innerHTML = `<strong>Kullanıcı:</strong> ${userName} (${userEmail})`;
-        }
-    });
+    if (userName && userEmail) {
+        userInfo.innerHTML = `<strong>Kullanıcı:</strong> ${userName} (${userEmail})`;
+    }
 
     function logout() {
         localStorage.removeItem('token');
         localStorage.removeItem('userName');
         localStorage.removeItem('userEmail');
-        window.location.href = 'login.html';
+        window.location.href = /*[[@{/login}]]*/ '/login';
     }
 
     function goBack() {
-        window.location.href = 'products.html';
+        window.location.href = /*[[@{/products}]]*/ '/products';
     }
 
-    const token = localStorage.getItem('token'); // JWT token
+    const token = localStorage.getItem('token');
     if (!token) {
-        window.location.href = 'login.html'; // Token yoksa login sayfasına yönlendir
+        window.location.href = /*[[@{/login}]]*/ '/login';
     }
 
     async function loadCart() {
         try {
-            const response = await fetch('http://localhost:8080/api/cart', {
+            const response = await fetch(/*[[@{/api/cart}]]*/ '/api/cart', {
                 headers: { 'Authorization': 'Bearer ' + token }
             });
-            if (response.status === 401) window.location.href = 'login.html';
+            if (response.status === 401) window.location.href = /*[[@{/login}]]*/ '/login';
             if (!response.ok) throw new Error("Sepet yüklenemedi");
 
             const cartItems = await response.json();
@@ -122,8 +82,9 @@
             tbody.innerHTML = '';
 
             if (cartItems.length === 0) {
-                document.querySelector('.checkout-btn').disabled = true;
-                document.querySelector('.checkout-btn').style.backgroundColor = 'grey';
+                const checkoutBtn = document.querySelector('.checkout-btn');
+                checkoutBtn.disabled = true;
+                checkoutBtn.style.backgroundColor = 'grey';
             }
 
             cartItems.forEach(item => {
@@ -150,7 +111,7 @@
 
     async function updateQuantity(id, quantity) {
         try {
-            const response = await fetch(`http://localhost:8080/api/cart/${id}`, {
+            const response = await fetch(/*[[@{/api/cart/}]]*/ '/api/cart/' + id, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -168,7 +129,7 @@
 
     async function removeItem(id) {
         try {
-            const response = await fetch(`http://localhost:8080/api/cart/${id}`, {
+            const response = await fetch(/*[[@{/api/cart/}]]*/ '/api/cart/' + id, {
                 method: 'DELETE',
                 headers: { 'Authorization': 'Bearer ' + token }
             });
@@ -191,7 +152,7 @@
         checkoutBtn.textContent = 'İşlem Yapılıyor...';
 
         try {
-            const response = await fetch('http://localhost:8080/api/orders', {
+            const response = await fetch(/*[[@{/api/orders}]]*/ '/api/orders', {
                 method: 'POST',
                 headers: { 'Authorization': 'Bearer ' + token }
             });
@@ -203,7 +164,7 @@
             }
 
             const order = await response.json();
-            window.location.href = `purchase.html?orderId=${order.id}`;
+            window.location.href = `/purchase?orderId=${order.id}`;
 
         } catch (error) {
             console.error('Checkout Hatası:', error);
@@ -218,4 +179,5 @@
 </script>
 </body>
 </html>
+
 
