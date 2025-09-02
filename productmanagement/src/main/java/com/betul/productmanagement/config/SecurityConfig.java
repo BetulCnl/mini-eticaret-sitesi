@@ -66,24 +66,29 @@ public class SecurityConfig {
 
                         // HTML dosyaları
                         .requestMatchers("/index.html").permitAll()
-                        .requestMatchers("/templates/login.html").permitAll()
+                        .requestMatchers("/login.html").permitAll()
                         .requestMatchers("/register.html").permitAll()
                         .requestMatchers("/products.html").permitAll()
+                        .requestMatchers("/products").permitAll()
                         .requestMatchers("/cart.html").permitAll()
+                        .requestMatchers("/cart").permitAll()
                         .requestMatchers("/purchase.html").permitAll()
+                        .requestMatchers("/purchase").permitAll()
                         .requestMatchers("/myOrders.html").permitAll()
+                        .requestMatchers("/myOrders").permitAll()
 
                         // API endpointleri
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/products/**").permitAll()
-                        .requestMatchers("/api/cart/**").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers("/api/cart/**").permitAll() // Geçici olarak tüm sepet işlemlerine izin ver
+                        //.requestMatchers("/api/cart/**").hasAnyRole("USER", "ADMIN") // Orijinal rol kısıtlaması
                         .requestMatchers("/api/orders/**").hasAnyRole("USER", "ADMIN")
 
                         // H2 Console
                         .requestMatchers("/h2-console/**").permitAll()
 
                         //Geri kalan her şey girişli kullanıcı için
-                        .anyRequest().authenticated()
+                        .anyRequest().permitAll()
                         //----------------------------------
                         // Geri kalan tüm endpointler
                         //.anyRequest().permitAll() // <-- değişiklik

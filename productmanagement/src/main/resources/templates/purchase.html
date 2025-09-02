@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="tr" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <title>Ödeme</title>
@@ -10,7 +10,7 @@
     <button onclick="logout()">Çıkış Yap</button>
 </header>
 <h1>Ödeme Sayfası</h1>
-<p id="order-info">Sipariş ID: ...</p>
+<p id="order-info" th:text="${orderId} ? 'Sipariş ID: ' + ${orderId} : 'Sipariş ID bulunamadı!'">Sipariş ID: ...</p>
 <button onclick="handlePayment('SUCCESS')">SUCCESS</button>
 <button onclick="handlePayment('FAILED')">FAILED</button>
 
@@ -29,22 +29,20 @@
         localStorage.removeItem('token');
         localStorage.removeItem('userName');
         localStorage.removeItem('userEmail');
-        window.location.href = 'login.html';
+        window.location.href = '/login';
     }
 
     const token = localStorage.getItem('token');
-    const urlParams = new URLSearchParams(window.location.search);
-    const orderId = urlParams.get('orderId');
+    const orderId = '[[${orderId}]]'; // Thymeleaf'ten orderId'yi al
+    const apiBaseUrl = '[[${apiBaseUrl}]]'; // Thymeleaf'ten apiBaseUrl'i al
 
     if (!token) {
         window.location.href = 'login.html';
     }
 
-    if (!orderId) {
+    if (!orderId || orderId === 'null') { // Thymeleaf'ten gelen boş değer 'null' stringi olabilir
         document.getElementById('order-info').textContent = "Sipariş ID bulunamadı!";
         document.querySelectorAll('button').forEach(b => b.disabled = true);
-    } else {
-        document.getElementById('order-info').textContent = `Sipariş ID: ${orderId}`;
     }
 
     async function handlePayment(status) {
@@ -55,7 +53,7 @@
         } else {
             endpoint = 'fail';
         }
-        const url = `http://localhost:8080/api/orders/${orderId}/${endpoint}`;
+        const url = `${apiBaseUrl}/api/orders/${orderId}/${endpoint}`;
 
         const requestBody = {
             orderId: parseInt(orderId),
@@ -85,7 +83,7 @@
                 : `Ödeme başarısız oldu. Siparişiniz (ID: ${orderId}) iptal edildi.`;
 
             alert(resultMessage);
-            window.location.href = 'products.html';
+            window.location.href = '/products';
 
         } catch (error) {
             console.error("Ödeme işlenirken hata:", error);

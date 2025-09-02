@@ -71,7 +71,7 @@
 
     async function loadCart() {
         try {
-            const response = await fetch(/*[[@{/api/cart}]]*/ '/api/cart', {
+            const response = await fetch('http://localhost:8082/api/cart', {
                 headers: { 'Authorization': 'Bearer ' + token }
             });
             if (response.status === 401) window.location.href = /*[[@{/login}]]*/ '/login';
@@ -86,6 +86,7 @@
                 checkoutBtn.disabled = true;
                 checkoutBtn.style.backgroundColor = 'grey';
             }
+            console.log("Loaded cart items:", cartItems);
 
             cartItems.forEach(item => {
                 const tr = document.createElement('tr');
@@ -111,7 +112,7 @@
 
     async function updateQuantity(id, quantity) {
         try {
-            const response = await fetch(/*[[@{/api/cart/}]]*/ '/api/cart/' + id, {
+            const response = await fetch('http://localhost:8082/api/cart/' + id, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -128,8 +129,11 @@
     }
 
     async function removeItem(id) {
+        console.log("Attempting to remove item with ID:", id);
+        const url = 'http://localhost:8082/api/cart/' + id;
+        console.log("DELETE request URL:", url);
         try {
-            const response = await fetch(/*[[@{/api/cart/}]]*/ '/api/cart/' + id, {
+            const response = await fetch(url, {
                 method: 'DELETE',
                 headers: { 'Authorization': 'Bearer ' + token }
             });
@@ -152,7 +156,7 @@
         checkoutBtn.textContent = 'İşlem Yapılıyor...';
 
         try {
-            const response = await fetch(/*[[@{/api/orders}]]*/ '/api/orders', {
+            const response = await fetch('http://localhost:8082/api/orders', {
                 method: 'POST',
                 headers: { 'Authorization': 'Bearer ' + token }
             });
@@ -181,3 +185,4 @@
 </html>
 
 
+//kodun en güncel hali

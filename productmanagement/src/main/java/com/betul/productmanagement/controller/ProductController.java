@@ -10,6 +10,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/products")
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 public class ProductController {
 
     private final ProductService productService;
+    private static final Logger logger = LoggerFactory.getLogger(ProductController.class);
 
 
     // Tüm ürünleri listele
@@ -25,8 +28,9 @@ public class ProductController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size,
             @RequestParam(required = false) String category) {
-
+        logger.info("Fetching all products. Page: {}, Size: {}, Category: {}", page, size, category);
         Page<Product> products = productService.getAllProducts(page, size, category);
+        logger.info("Found {} products on page {}. Total elements: {}", products.getContent().size(), products.getNumber(), products.getTotalElements());
         return ResponseEntity.ok(products);
     }
 

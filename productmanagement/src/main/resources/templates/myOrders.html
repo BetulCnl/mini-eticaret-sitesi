@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -33,7 +33,7 @@
         <div class="card-header">
             <h3>Siparişlerim</h3>
             <div>
-                <a href="/templates/products.html" class="btn btn-primary">Ürünlere Geri Dön</a>
+                <a th:href="@{/products}" class="btn btn-primary">Ürünlere Geri Dön</a>
                 <button id="logoutButton" class="btn btn-danger">Çıkış Yap</button>
             </div>
         </div>
@@ -68,7 +68,7 @@
     document.addEventListener('DOMContentLoaded', function () {
         const token = localStorage.getItem('token');
         if (!token) {
-            window.location.href = '/login.html';
+            window.location.href = '[[@{/login}]]';
             return;
         }
 
@@ -76,7 +76,7 @@
         const pageSize = 10;
 
         function loadOrders(page) {
-            fetch(`/api/orders?page=${page}&size=${pageSize}`, {
+            fetch(`[[@{/api/orders}]]?page=${page}&size=${pageSize}`, {
                 method: 'GET',
                 headers: {
                     'Authorization': 'Bearer ' + token,
@@ -86,7 +86,7 @@
                 .then(response => {
                     if (response.status === 401 || response.status === 403) {
                         localStorage.removeItem('token');
-                        window.location.href = '/login.html';
+                        window.location.href = '[[@{/login}]]';
                         return Promise.reject(new Error('Yetkilendirme hatası. Lütfen tekrar giriş yapın.'));
                     }
                     if (!response.ok) {
@@ -133,7 +133,7 @@
                                 const orderId = this.dataset.id;
                                 const row = this.closest('tr');
                                 if (confirm("Bu siparişi iptal etmek istediğinize emin misiniz?")) {
-                                    fetch(`/api/orders/${orderId}/cancel`, {
+                                    fetch(`[[@{/api/orders}]]/${orderId}/cancel`, {
                                         method: 'PATCH',
                                         headers: {
                                             'Authorization': 'Bearer ' + token,
@@ -189,7 +189,7 @@
         // Logout
         document.getElementById('logoutButton').addEventListener('click', () => {
             localStorage.removeItem('token');
-            window.location.href = '/login.html';
+            window.location.href = '[[@{/login}]]';
         });
     });
 </script>

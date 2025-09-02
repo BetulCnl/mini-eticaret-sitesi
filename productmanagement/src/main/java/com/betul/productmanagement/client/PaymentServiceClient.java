@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 //service discovery kullanmıyorsak, url'yi manuel olarak yazıyoruz.
 // Eğer Eureka kullanıyorsak, 'name' ile servisi bulabiliriz ve url'yi yazmamıza gerek kalmaz.
 
-@FeignClient(name = "payment-service", url = "http://localhost:8081/api/v1")
+@FeignClient(name = "payment-service", url = "${payment.service.url}/api/v1")
 public interface PaymentServiceClient {
 
     // Bu metot imzası, payment-service'deki PaymentController'daki metotla eşleşmelidir.

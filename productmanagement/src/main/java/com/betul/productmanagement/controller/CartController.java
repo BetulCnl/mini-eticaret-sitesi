@@ -11,14 +11,18 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/cart")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+//@PreAuthorize("hasAnyRole('USER', 'ADMIN')") // Geçici olarak devre dışı bırakıldı
 public class CartController {
+
+    private static final Logger logger = LoggerFactory.getLogger(CartController.class);
 
     private final CartService cartService;
     private final CurrentUserService currentUserService;
@@ -45,8 +49,10 @@ public class CartController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> removeItem(@PathVariable Long id) {
+        logger.info("Attempting to remove item with ID: {}", id);
         User user = currentUserService.getCurrentUserOrThrow();
         cartService.removeItem(user, id);
+        logger.info("Item with ID {} removed successfully for user {}", id, user.getEmail());
         return ResponseEntity.noContent().build();
     }
 } 

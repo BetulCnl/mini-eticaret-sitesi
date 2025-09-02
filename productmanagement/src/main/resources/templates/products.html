@@ -43,8 +43,8 @@
   <input id="minPrice" type="number" step="0.01" placeholder="Min fiyat" />
   <input id="maxPrice" type="number" step="0.01" placeholder="Max fiyat" />
   <button onclick="applyFilters()">Uygula</button>
-  <button onclick="location.href='myOrders.html'" style="margin-left: auto;">Siparişlerim</button>
-  <button onclick="location.href='cart.html'">Sepetim</button>
+  <button onclick="location.href='/myOrders'" style="margin-left: auto;">Siparişlerim</button>
+  <button onclick="location.href='/cart'">Sepetim</button>
 </div>
 
 <div id="list" class="grid"></div>
@@ -77,7 +77,7 @@
 
   let page = 0;
   const size = 12;
-  const base = /*[[@{/}]]*/ '/';
+  const base = /*[[@{/}]]*/ 'http://localhost:8082';
 
   async function fetchProducts() {
     const search = document.getElementById('search').value.trim();
