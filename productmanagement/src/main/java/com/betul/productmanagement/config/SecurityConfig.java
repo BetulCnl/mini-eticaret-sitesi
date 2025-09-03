@@ -68,7 +68,9 @@ public class SecurityConfig {
                         // HTML dosyaları
                         .requestMatchers("/index.html").permitAll()
                         .requestMatchers("/login.html").permitAll()
+                        .requestMatchers("/login").permitAll() // Login endpoint'ine erişime izin ver
                         .requestMatchers("/register.html").permitAll()
+                        .requestMatchers("/register").permitAll() // Register endpoint'ine erişime izin ver
                         .requestMatchers("/products.html").permitAll()
                         .requestMatchers("/products").permitAll()
                         .requestMatchers("/cart.html").permitAll()
