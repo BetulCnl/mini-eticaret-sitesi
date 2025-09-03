@@ -10,6 +10,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.betul.productmanagement.enums.Role; // Doğru paket ve enum adı
 
 import java.util.Optional;
 
@@ -37,6 +38,8 @@ public class UserService {
 
         // RegisterRequest -> User (entity)
         User user = userMapper.toEntity(request);
+        // Frontend'den rol gelmiyorsa veya null ise varsayılan olarak USER ata
+        user.setRole(request.getRole() != null ? request.getRole() : Role.USER);
         logger.info("Mapped RegisterRequest to User entity: {}", user);
 
         // Kaydet

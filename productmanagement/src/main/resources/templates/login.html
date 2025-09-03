@@ -37,10 +37,6 @@
         <input type="text" id="regName" placeholder="İsim" required>
         <input type="email" id="regEmail" placeholder="Email" required>
         <input type="password" id="regPassword" placeholder="Şifre" required>
-        <select id="regRole" style="padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px;">
-            <option value="USER">Kullanıcı (USER)</option>
-            <option value="ADMIN">Yönetici (ADMIN)</option>
-        </select>
         <button type="submit">Kayıt Ol</button>
     </form>
 
@@ -119,13 +115,13 @@
         const name = document.getElementById('regName').value;
         const email = document.getElementById('regEmail').value;
         const password = document.getElementById('regPassword').value;
-        const role = document.getElementById('regRole').value;
+        // const role = document.getElementById('regRole').value; // Kaldırıldı, rol ataması backend'de yapılıyor
 
         try {
             const res = await fetch(`${baseUrl}/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, email, password, role })
+                body: JSON.stringify({ name, email, password })
             });
 
             if(!res.ok) {
