@@ -7,6 +7,10 @@ import org.springframework.stereotype.Component;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 @Component
 public class JwtUtil {
@@ -22,11 +26,17 @@ public class JwtUtil {
         this.expirationMs = expirationMs;
     }
 
-    public String generateToken(String subject) {
+    public String generateToken(UserDetails userDetails) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMs);
+
+        List<String> roles = userDetails.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toList());
+
         return Jwts.builder()
-                .setSubject(subject)
+                .setSubject(userDetails.getUsername())
+                .claim("roles", roles)
                 .setIssuedAt(now)
                 .setExpiration(expiry)
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -35,6 +45,10 @@ public class JwtUtil {
 
     public String extractUsername(String token) {
         return parseClaims(token).getBody().getSubject();
+    }
+
+    public List<String> extractRoles(String token) {
+        return (List<String>) parseClaims(token).getBody().get("roles");
     }
 
     public boolean validateToken(String token) {

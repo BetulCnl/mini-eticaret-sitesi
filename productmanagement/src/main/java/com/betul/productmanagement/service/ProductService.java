@@ -30,6 +30,7 @@ public class ProductService {
         product.setName(dto.getName());
         product.setDescription(dto.getDescription());
         product.setPrice(dto.getPrice());
+        product.setStock(dto.getStock()); // Set stock from DTO
         product.setCategory(category);
 
         return productRepository.save(product);

@@ -41,9 +41,11 @@ public class OrderService {
     private final PaymentServiceClient paymentServiceClient;
     private final PaymentTransactionService paymentTransactionService;
     private final PaymentTransactionRepository paymentTransactionRepository;
+    private final ProductService productService; // Add this line
     private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "products", allEntries = true)
     public OrderDTO checkout(User user) {
         List<CartItem> cartItems = cartItemRepository.findByUser(user);
         if (cartItems.isEmpty()) {
@@ -67,7 +69,7 @@ public class OrderService {
             }
             product.setStock(product.getStock() - cartItem.getQuantity());
             try {
-                productRepository.save(product);
+                productService.updateStock(product.getId(), product.getStock());
             } catch (OptimisticLockingFailureException e) {
                 throw new RuntimeException("Stock update failed, please try again");
             }
@@ -143,12 +145,13 @@ public class OrderService {
         for (OrderItem item : order.getItems()) {
             productRepository.findById(item.getProductId()).ifPresent(product -> {
                 product.setStock(product.getStock() + item.getQuantity());
-                productRepository.save(product);
+                productService.updateStock(product.getId(), product.getStock());
             });
         }
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "products", allEntries = true)
     public OrderDTO cancelOrder(Long orderId, User user) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));

@@ -16,8 +16,10 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.web.bind.annotation.*;
 import com.betul.productmanagement.dto.RestResponseDTO;
 import com.betul.productmanagement.dto.UserResponseDTO;
+import com.betul.productmanagement.service.CustomUserDetailsService;
 
 import java.time.LocalDateTime;
+import org.springframework.security.core.userdetails.UserDetails;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -28,6 +30,7 @@ public class UserController {
     private final AuthenticationManager authenticationManager; //email şifre eşleşmesi kontrolü
     private final JwtUtil jwtUtil; //token oluşturma doğrulama
     private final UserRepository userRepository;
+    private final CustomUserDetailsService customUserDetailsService;
 
     //-----------------------------------------------------------
     //bu alttaki kısımda önceden saçma olarak user nesnesi controller manuel oluşturuyordu, şimdi RegisterRequest alıyor
@@ -68,7 +71,10 @@ public class UserController {
                     new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword());
             authenticationManager.authenticate(authToken);
 
-            String token = jwtUtil.generateToken(request.getEmail());
+            // Authentication başarılıysa, CustomUserDetailsService'den UserDetails nesnesini yükle
+            UserDetails userDetails = customUserDetailsService.loadUserByUsername(request.getEmail());
+
+            String token = jwtUtil.generateToken(userDetails);
 
             User user = userRepository.findByEmail(request.getEmail())
                     .orElseThrow(() -> new RuntimeException("User not found"));

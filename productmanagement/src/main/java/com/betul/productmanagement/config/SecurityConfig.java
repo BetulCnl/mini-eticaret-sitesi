@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -79,20 +80,25 @@ public class SecurityConfig {
 
                         // API endpointleri
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/products/**").permitAll()
-                        .requestMatchers("/api/cart/**").permitAll() // Geçici olarak tüm sepet işlemlerine izin ver
-                        //.requestMatchers("/api/cart/**").hasAnyRole("USER", "ADMIN") // Orijinal rol kısıtlaması
+                        // Products API
+                        .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/products/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/products/**").hasRole("ADMIN")
+                        // Categories API
+                        .requestMatchers(HttpMethod.POST, "/api/categories").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/categories").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
+                        // Cart API
+                        .requestMatchers("/api/cart/**").hasAnyRole("USER", "ADMIN") // Sepet işlemleri için kullanıcı/admin yetkisi
+                        // Orders API
                         .requestMatchers("/api/orders/**").hasAnyRole("USER", "ADMIN")
 
                         // H2 Console
                         .requestMatchers("/h2-console/**").permitAll()
 
                         //Geri kalan her şey girişli kullanıcı için
-                        .anyRequest().permitAll()
-                        //----------------------------------
-                        // Geri kalan tüm endpointler
-                        //.anyRequest().permitAll() // <-- değişiklik
-                        //-------------------------------
+                        .anyRequest().authenticated()
                 )
                 .headers(headers -> headers.frameOptions(frame -> frame.disable()))
                 .authenticationProvider(authenticationProvider())

@@ -14,6 +14,9 @@ public class ProductCreateDTO {
     @NotNull
     private BigDecimal price;
 
+    @NotNull
+    private int stock; // Added stock field
+
     @NotBlank
     private String categoryName; // Sadece kategori adı alınacak
 
@@ -26,6 +29,9 @@ public class ProductCreateDTO {
 
     public BigDecimal getPrice() { return price; }
     public void setPrice(BigDecimal price) { this.price = price; }
+
+    public int getStock() { return stock; } // Added getter for stock
+    public void setStock(int stock) { this.stock = stock; } // Added setter for stock
 
     public String getCategoryName() { return categoryName; }
     public void setCategoryName(String categoryName) { this.categoryName = categoryName; }
