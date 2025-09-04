@@ -72,27 +72,42 @@
     });
 
     // Login işlemi
+
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         errorMsg.textContent = '';
         successMsg.textContent = '';
 
+        //deviceId oluştur varsa localStorage'dan al
         const email = document.getElementById('loginEmail').value;
         const password = document.getElementById('loginPassword').value;
+        let deviceId = localStorage.getItem('deviceId');
+        if (!deviceId) {
+            deviceId = crypto.randomUUID();
+            localStorage.setItem('deviceId', deviceId);
+        }
 
         try {
             const res = await fetch(`${baseUrl}/login`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Device-Id': deviceId  // bu header backend ile eşleşmeli
+                },
                 body: JSON.stringify({ email, password })
             });
 
-            if(!res.ok) {
-                const err = await res.json();
-                throw new Error(err.message || 'Giriş başarısız!');
+            let data = null;
+            try {
+                data = await res.json(); // JSON varsa al
+            } catch (err) {
+                console.warn('JSON parse hatası, response boş olabilir');
             }
 
-            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data?.message || 'Giriş başarısız!');
+            }
+
             localStorage.setItem('token', data.token);
             localStorage.setItem('userName', data.name);
             localStorage.setItem('userEmail', data.email);
@@ -105,6 +120,7 @@
             errorMsg.textContent = err.message;
         }
     });
+
 
     // Register işlemi
     registerForm.addEventListener('submit', async (e) => {

@@ -28,31 +28,31 @@ public class CartController {
     private final CurrentUserService currentUserService;
 
     @GetMapping
-    public ResponseEntity<List<CartItemDTO>> getCart() {
+    public ResponseEntity<List<CartItemDTO>> getCart(@RequestHeader("X-Device-Id") String deviceId) {
         User user = currentUserService.getCurrentUserOrThrow();
-        return ResponseEntity.ok(cartService.getCartItems(user));
+        return ResponseEntity.ok(cartService.getCartItems(user, deviceId));
     }
 
     @PostMapping
-    public ResponseEntity<CartItemDTO> addItem(@Valid @RequestBody CartItemRequest request) {
+    public ResponseEntity<CartItemDTO> addItem(@Valid @RequestBody CartItemRequest request, @RequestHeader("X-Device-Id") String deviceId) {
         User user = currentUserService.getCurrentUserOrThrow();
-        CartItemDTO item = cartService.addItem(user, request.getProductId(), request.getQuantity());
+        CartItemDTO item = cartService.addItem(user, request.getProductId(), request.getQuantity(), deviceId);
         return ResponseEntity.ok(item);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CartItemDTO> updateQuantity(@PathVariable Long id, @Valid @RequestBody UpdateQuantityRequest request) {
+    public ResponseEntity<CartItemDTO> updateQuantity(@PathVariable Long id, @Valid @RequestBody UpdateQuantityRequest request, @RequestHeader("X-Device-Id") String deviceId) {
         User user = currentUserService.getCurrentUserOrThrow();
-        CartItemDTO item = cartService.updateQuantity(user, id, request.getQuantity());
+        CartItemDTO item = cartService.updateQuantity(user, id, request.getQuantity(), deviceId);
         return ResponseEntity.ok(item);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> removeItem(@PathVariable Long id) {
-        logger.info("Attempting to remove item with ID: {}", id);
+    public ResponseEntity<Void> removeItem(@PathVariable Long id, @RequestHeader("X-Device-Id") String deviceId) {
+        logger.info("Attempting to remove item with ID: {} for device: {}", id, deviceId);
         User user = currentUserService.getCurrentUserOrThrow();
-        cartService.removeItem(user, id);
-        logger.info("Item with ID {} removed successfully for user {}", id, user.getEmail());
+        cartService.removeItem(user, id, deviceId);
+        logger.info("Item with ID {} removed successfully for user {} on device {}", id, user.getEmail(), deviceId);
         return ResponseEntity.noContent().build();
     }
-} 
+}

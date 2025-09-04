@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
@@ -14,20 +15,7 @@
     .muted { color:#666; font-size: 12px; }
     .row { display:flex; justify-content:space-between; align-items:center; margin-top: 8px; }
     .pagination { margin-top:16px; display:flex; gap:8px; align-items:center; }
-    /* Toast bildirim stili */
-    #toast {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background-color: #28a745;
-      color: white;
-      padding: 10px 20px;
-      border-radius: 5px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      display: none;
-      z-index: 9999;
-      font-weight: bold;
-    }
+    #toast { position: fixed; top: 20px; right: 20px; background-color: #28a745; color: white; padding: 10px 20px; border-radius: 5px; display: none; z-index: 9999; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -54,18 +42,22 @@
   <button onclick="nextPage()">Sonraki</button>
 </div>
 
-<!-- Toast bildirimi -->
 <div id="toast">Ürün sepete eklendi!</div>
 
 <script>
+  const base = 'http://localhost:8082';
+  let page = 0;
+  const size = 12;
+
   document.addEventListener('DOMContentLoaded', () => {
     const userInfo = document.getElementById('userInfo');
     const userName = localStorage.getItem('userName');
     const userEmail = localStorage.getItem('userEmail');
+    if (userName && userEmail) userInfo.innerHTML = `<strong>Kullanıcı:</strong> ${userName} (${userEmail})`;
 
-    if (userName && userEmail) {
-      userInfo.innerHTML = `<strong>Kullanıcı:</strong> ${userName} (${userEmail})`;
-    }
+    if (!localStorage.getItem('token')) window.location.href = '/login';
+    if (!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'device-' + Math.random().toString(36).substring(2,15));
+    fetchProducts();
   });
 
   function logout() {
@@ -75,9 +67,23 @@
     window.location.href = '/login';
   }
 
-  let page = 0;
-  const size = 12;
-  const base = /*[[@{/}]]*/ 'http://localhost:8082';
+  async function authFetch(url, options = {}) {
+    const token = localStorage.getItem('token');
+    const deviceId = localStorage.getItem('deviceId');
+    options.headers = {
+      ...options.headers,
+      'Authorization': 'Bearer ' + token,
+      'X-Device-Id': deviceId,
+      'Content-Type': 'application/json'
+    };
+    const res = await fetch(url, options);
+    if (res.status === 401 || res.status === 403) {
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+      return null;
+    }
+    return res;
+  }
 
   async function fetchProducts() {
     const search = document.getElementById('search').value.trim();
@@ -86,9 +92,8 @@
     const maxPrice = document.getElementById('maxPrice').value.trim();
 
     let url = `${base}/api/products?page=${page}&size=${size}`;
-    if (search) {
-      url = `${base}/api/products/search?name=${encodeURIComponent(search)}&page=${page}&size=${size}`;
-    } else {
+    if (search) url = `${base}/api/products/search?name=${encodeURIComponent(search)}&page=${page}&size=${size}`;
+    else {
       const params = [];
       if (category) params.push(`category=${encodeURIComponent(category)}`);
       if (minPrice) params.push(`minPrice=${encodeURIComponent(minPrice)}`);
@@ -102,85 +107,57 @@
   }
 
   function renderList(paged) {
-    console.log("Received paged data:", paged);
     const list = document.getElementById('list');
     list.innerHTML = '';
     const items = paged.content || [];
     items.forEach(p => {
-      console.log("Rendering product:", p.name, "Stock:", p.stock);
       const div = document.createElement('div');
       div.className = 'card';
       div.innerHTML = `
+      <div>
+        <div class="name">${p.name}</div>
+        <div class="muted">${p.category ? p.category.name : ''}</div>
+        <div>${p.description || ''}</div>
+      </div>
+      <div class="row">
         <div>
-          <div class="name">${p.name}</div>
-          <div class="muted">${p.category ? p.category.name : ''}</div>
-          <div>${p.description || ''}</div>
+          <span class="price">₺${p.price}</span>
+          <div class="muted">Stok: ${p.stock}</div>
         </div>
-        <div class="row">
-          <div>
-            <span class="price">₺${p.price}</span>
-            <div class="muted">Stok: ${p.stock}</div>
-          </div>
-          ` + (parseInt(p.stock) > 0 ? `<button onclick="addToCart(${p.id})">Sepete Ekle</button>` : `<button disabled style="cursor: not-allowed; background-color: #ccc;">Tükendi</button>`) + `
-        </div>
-      `;
-      console.log("Generated HTML for product:", p.name, ":", div.innerHTML);
+        ` + (parseInt(p.stock) > 0 ? `<button onclick="addToCart(${p.id})">Sepete Ekle</button>` : `<button disabled style="cursor: not-allowed; background-color: #ccc;">Tükendi</button>`) + `
+      </div>
+    `;
       list.appendChild(div);
     });
     document.getElementById('pageInfo').textContent = `Sayfa ${paged.number + 1} / ${Math.max(1, paged.totalPages || 1)} • Toplam: ${paged.totalElements}`;
   }
 
   async function addToCart(productId) {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      alert('Lütfen önce giriş yapınız.');
-      window.location.href = 'login.html';
-      return;
-    }
-
-    try {
-      const res = await fetch(`${base}/api/cart`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ productId: productId, quantity: 1 })
-      });
-
-      if (res.ok) {
-        showToast('Ürün sepete eklendi!');
-      } else {
-        let errorMessage = 'Bir sorun oluştu.';
-        try {
-          const error = await res.json();
-          errorMessage = error.message || error.error || JSON.stringify(error);
-        } catch (e) {
-          errorMessage = res.statusText;
-        }
-        showToast(`Hata (${res.status}): ${errorMessage}`, true);
-      }
-    } catch (err) {
-      console.error('Sepete ekleme hatası:', err);
-      showToast('Bir ağ hatası veya başka bir sorun oluştu.', true);
+    const res = await authFetch(`${base}/api/cart`, {
+      method: 'POST',
+      body: JSON.stringify({ productId, quantity:1 })
+    });
+    if (!res) return;
+    if (res.ok) showToast('Ürün sepete eklendi!');
+    else {
+      const err = await res.json().catch(()=>({message:'Bir hata oluştu'}));
+      showToast(err.message || 'Hata', true);
     }
   }
 
-  function showToast(message, isError = false) {
+  function showToast(message, isError=false) {
     const toast = document.getElementById('toast');
     toast.textContent = message;
     toast.style.backgroundColor = isError ? '#dc3545' : '#28a745';
     toast.style.display = 'block';
-    setTimeout(() => {
-      toast.style.display = 'none';
-    }, 2000);
+    setTimeout(()=>{ toast.style.display='none'; }, 2000);
   }
 
   function nextPage(){ page++; fetchProducts(); }
   function prevPage(){ if(page>0){ page--; fetchProducts(); } }
-  function applyFilters(){ page = 0; fetchProducts(); }
-
-  fetchProducts();
+  function applyFilters(){ page=0; fetchProducts(); }
 </script>
 </body>
 </html>
+
+

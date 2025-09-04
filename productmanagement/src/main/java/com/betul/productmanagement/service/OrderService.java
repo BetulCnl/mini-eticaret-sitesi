@@ -46,8 +46,8 @@ public class OrderService {
 
     @Transactional
     @org.springframework.cache.annotation.CacheEvict(value = "products", allEntries = true)
-    public OrderDTO checkout(User user) {
-        List<CartItem> cartItems = cartItemRepository.findByUser(user);
+    public OrderDTO checkout(User user, String deviceId) {
+        List<CartItem> cartItems = cartItemRepository.findByUserAndDeviceId(user, deviceId);
         if (cartItems.isEmpty()) {
             throw new RuntimeException("Cart is empty");
         }
@@ -87,16 +87,17 @@ public class OrderService {
     }
 
     @Transactional
-    public OrderDTO completeOrder(Long orderId, User user) {
-        return processOrderPayment(orderId, user, PaymentStatus.SUCCESS);
+    public OrderDTO completeOrder(Long orderId, User user, String deviceId) {
+        return processOrderPayment(orderId, user, PaymentStatus.SUCCESS, deviceId);
     }
 
     @Transactional
     public OrderDTO failOrder(Long orderId, User user) {
-        return processOrderPayment(orderId, user, PaymentStatus.FAILED);
+        // failOrder'da sepet temizlenmediği için deviceId'ye gerek yok.
+        return processOrderPayment(orderId, user, PaymentStatus.FAILED, null);
     }
 
-    private OrderDTO processOrderPayment(Long orderId, User user, PaymentStatus intendedStatus) {
+    private OrderDTO processOrderPayment(Long orderId, User user, PaymentStatus intendedStatus, String deviceId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
@@ -124,7 +125,10 @@ public class OrderService {
 
             if (paymentResponse.getStatus() == PaymentStatus.SUCCESS) {
                 order.setOrderStatus(OrderStatus.COMPLETED);
-                cartItemRepository.deleteByUser(user);
+                // Sadece başarılı ödemede ilgili cihazın sepeti temizlenir
+                if (deviceId != null) {
+                    cartItemRepository.deleteByUserAndDeviceId(user, deviceId);
+                }
             } else {
                 order.setOrderStatus(OrderStatus.FAILED);
                 revertStock(order);

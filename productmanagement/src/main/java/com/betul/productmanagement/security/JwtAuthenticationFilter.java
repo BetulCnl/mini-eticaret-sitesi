@@ -1,5 +1,7 @@
 package com.betul.productmanagement.security;
 
+import com.betul.productmanagement.entity.UserSession;
+import com.betul.productmanagement.repository.UserSessionRepository;
 import com.betul.productmanagement.service.CustomUserDetailsService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -21,9 +23,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService userDetailsService;
+    private final UserSessionRepository userSessionRepository;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
+
         String authHeader = request.getHeader("Authorization");
         String token = null;
         String username = null;
@@ -36,13 +41,35 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+
+            // 🔹 Kullanıcı detaylarını yükle
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                    userDetails, null, userDetails.getAuthorities());
+
+            // 🔹 DeviceId header'ını al
+            String deviceId = request.getHeader("X-Device-Id");
+            if (deviceId == null) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().write("Device ID header missing");
+                return;
+            }
+
+            // 🔹 Token ve deviceId eşleşmesini kontrol et
+            UserSession session = userSessionRepository.findByToken(token)
+                    .orElse(null);
+
+            if (session == null || !session.getDeviceId().equals(deviceId)) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().write("Invalid token for this device");
+                return;
+            }
+
+            // 🔹 AuthenticationContext ayarla
+            UsernamePasswordAuthenticationToken authToken =
+                    new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
             authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authToken);
         }
 
         filterChain.doFilter(request, response);
     }
-} 
+}

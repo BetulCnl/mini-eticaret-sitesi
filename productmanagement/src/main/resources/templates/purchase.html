@@ -1,97 +1,83 @@
 <!DOCTYPE html>
-<html lang="tr" xmlns:th="http://www.thymeleaf.org">
+<html lang="tr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ödeme</title>
 </head>
 <body>
-<header style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background-color: #f1f1f1; margin-bottom: 20px;">
+<header style="display:flex; justify-content:space-between; padding:10px; background-color:#f1f1f1;">
     <div id="userInfo"></div>
     <button onclick="logout()">Çıkış Yap</button>
 </header>
+
 <h1>Ödeme Sayfası</h1>
-<p id="order-info" th:text="${orderId} ? 'Sipariş ID: ' + ${orderId} : 'Sipariş ID bulunamadı!'">Sipariş ID: ...</p>
+<p id="order-info">Sipariş ID: ...</p>
+
 <button onclick="handlePayment('SUCCESS')">SUCCESS</button>
 <button onclick="handlePayment('FAILED')">FAILED</button>
 
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const userInfo = document.getElementById('userInfo');
-        const userName = localStorage.getItem('userName');
-        const userEmail = localStorage.getItem('userEmail');
-
-        if (userName && userEmail) {
-            userInfo.innerHTML = `<strong>Kullanıcı:</strong> ${userName} (${userEmail})`;
-        }
-    });
-
-    function logout() {
-        localStorage.removeItem('token');
-        localStorage.removeItem('userName');
-        localStorage.removeItem('userEmail');
-        window.location.href = '/login';
-    }
-
     const token = localStorage.getItem('token');
-    const orderId = '[[${orderId}]]'; // Thymeleaf'ten orderId'yi al
-    const apiBaseUrl = '[[${apiBaseUrl}]]'; // Thymeleaf'ten apiBaseUrl'i al
+    const deviceId = localStorage.getItem('deviceId'); // deviceId'yi al
 
-    if (!token) {
-        window.location.href = 'login.html';
+    if(!token || !deviceId) { // deviceId kontrolü eklendi
+        localStorage.clear();
+        window.location.href='/login';
     }
 
-    if (!orderId || orderId === 'null') { // Thymeleaf'ten gelen boş değer 'null' stringi olabilir
-        document.getElementById('order-info').textContent = "Sipariş ID bulunamadı!";
-        document.querySelectorAll('button').forEach(b => b.disabled = true);
+    const userName = localStorage.getItem('userName');
+    const userEmail = localStorage.getItem('userEmail');
+    if(userName && userEmail) document.getElementById('userInfo').innerHTML = `<strong>Kullanıcı:</strong> ${userName} (${userEmail})`;
+
+    function logout(){
+        // Logout'u da deviceId'li yapalım
+        const headers = { 'Authorization': 'Bearer ' + token, 'X-Device-Id': deviceId };
+        fetch('/api/auth/logout', { method: 'POST', headers })
+            .finally(() => {
+                localStorage.clear();
+                window.location.href = '/login';
+            });
     }
 
-    async function handlePayment(status) {
-        let endpoint = '';
-        // ProductManagement Controller endpoint
-        if (status === 'SUCCESS') {
-            endpoint = 'complete';
-        } else {
-            endpoint = 'fail';
-        }
+    const urlParams = new URLSearchParams(window.location.search);
+    const orderId = urlParams.get('orderId');
+    document.getElementById('order-info').textContent = orderId ? `Sipariş ID: ${orderId}` : "Sipariş ID bulunamadı!";
+
+    const apiBaseUrl = 'http://localhost:8082';
+
+    async function handlePayment(status){
+        if(!orderId){ alert('Sipariş ID bulunamadı!'); return; }
+        const endpoint = status==='SUCCESS'?'complete':'fail';
         const url = `${apiBaseUrl}/api/orders/${orderId}/${endpoint}`;
 
-        const requestBody = {
-            orderId: parseInt(orderId),
-            amount: 100.0, // örnek miktar, gerekirse dinamik
-            paymentStatus: status,
-            paymentType: "CREDIT_CARD"
-        };
-        console.log(requestBody);
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Authorization': 'Bearer ' + token,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestBody)
+        try{
+            const res = await fetch(url,{
+                method:'POST',
+                headers:{
+                    'Authorization':'Bearer '+token,
+                    'X-Device-Id': deviceId, // Eksik olan header eklendi
+                    'Content-Type':'application/json'
+                }
+                // Body gereksiz olduğu için kaldırıldı
             });
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => null);
-                const errorMessage = errorData && errorData.message ? errorData.message : "İşlem gerçekleştirilemedi.";
-                throw new Error(errorMessage);
+            if(!res.ok){
+                const errData = await res.json().catch(()=>null);
+                throw new Error(errData?.message || 'Ödeme işlemi gerçekleştirilemedi.');
             }
 
-            const resultMessage = status === 'SUCCESS'
-                ? `Siparişiniz (ID: ${orderId}) başarıyla tamamlandı!`
-                : `Ödeme başarısız oldu. Siparişiniz (ID: ${orderId}) iptal edildi.`;
+            alert(status==='SUCCESS'
+                ? `Siparişiniz (ID:${orderId}) başarıyla tamamlandı!`
+                : `Ödeme başarısız oldu. Siparişiniz (ID:${orderId}) iptal edildi.`);
 
-            alert(resultMessage);
-            window.location.href = '/products';
-
-        } catch (error) {
-            console.error("Ödeme işlenirken hata:", error);
-            alert("Bir hata oluştu: " + error.message);
+            window.location.href='/myOrders';
+        } catch(err){
+            alert('Hata: '+err.message);
         }
     }
 </script>
-
 </body>
 </html>
+
 

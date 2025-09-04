@@ -23,10 +23,10 @@ public class CartService {
     private final ProductRepository productRepository;
 
     /**
-     * Kullanıcının sepetindeki ürünleri listeler.
+     * Kullanıcının belirli bir cihazdaki sepetindeki ürünleri listeler.
      */
-    public List<CartItemDTO> getCartItems(User user) {
-        return cartItemRepository.findByUser(user).stream()
+    public List<CartItemDTO> getCartItems(User user, String deviceId) {
+        return cartItemRepository.findByUserAndDeviceId(user, deviceId).stream()
                 .map(CartMapper::toCartItemDTO)
                 .collect(Collectors.toList());
     }
@@ -35,7 +35,7 @@ public class CartService {
      * Sepete ürün ekler. Eğer ürün zaten varsa miktarını artırır.
      */
     @Transactional
-    public CartItemDTO addItem(User user, Long productId, int quantity) {
+    public CartItemDTO addItem(User user, Long productId, int quantity, String deviceId) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new InvalidQuantityException("Ürün bulunamadı."));
 
@@ -45,7 +45,7 @@ public class CartService {
             );
         }
 
-        CartItem cartItem = cartItemRepository.findByUserIdAndProductId(user.getId(), productId)
+        CartItem cartItem = cartItemRepository.findByUserIdAndProductIdAndDeviceId(user.getId(), productId, deviceId)
                 .map(existing -> {
                     int newQty = existing.getQuantity() + quantity;
                     if (newQty > product.getStock()) {
@@ -61,6 +61,7 @@ public class CartService {
                             .user(user)
                             .product(product)
                             .quantity(quantity)
+                            .deviceId(deviceId) // deviceId eklendi
                             .build();
                     return cartItemRepository.save(newItem);
                 });
@@ -71,8 +72,8 @@ public class CartService {
      * Sepetteki bir ürünün miktarını günceller.
      */
     @Transactional
-    public CartItemDTO updateQuantity(User user, Long cartItemId, int quantity) {
-        CartItem item = cartItemRepository.findByIdAndUserId(cartItemId, user.getId())
+    public CartItemDTO updateQuantity(User user, Long cartItemId, int quantity, String deviceId) {
+        CartItem item = cartItemRepository.findByIdAndUserIdAndDeviceId(cartItemId, user.getId(), deviceId)
                 .orElseThrow(() -> new InvalidQuantityException("Sepet öğesi bulunamadı."));
 
         int stock = item.getProduct().getStock();
@@ -90,17 +91,20 @@ public class CartService {
      * Sepetten bir ürünü tamamen kaldırır.
      */
     @Transactional
-    public void removeItem(User user, Long cartItemId) {
-        CartItem item = cartItemRepository.findByIdAndUserId(cartItemId, user.getId())
+    public void removeItem(User user, Long cartItemId, String deviceId) {
+        CartItem item = cartItemRepository.findByIdAndUserIdAndDeviceId(cartItemId, user.getId(), deviceId)
                 .orElseThrow(() -> new InvalidQuantityException("Sepet öğesi bulunamadı."));
         cartItemRepository.delete(item);
     }
 
     /**
-     * Kullanıcının sepetini tamamen boşaltır.
+     * Kullanıcının belirli bir cihazdaki sepetini tamamen boşaltır.
      */
     @Transactional
-    public void clearCart(User user) {
-        cartItemRepository.deleteByUser(user);
+    public void clearCart(User user, String deviceId) {
+        // Not: Bu metodun repository'de karşılığı `deleteByUserAndDeviceId` olmalı.
+        // Ancak bu metod tüm sepeti sildiği için, önce o cihaza ait tüm item'ları bulup silmek daha güvenli olabilir.
+        // Şimdilik direkt repository metodunu çağıracak şekilde bırakıyorum.
+        cartItemRepository.deleteByUserAndDeviceId(user, deviceId);
     }
 }

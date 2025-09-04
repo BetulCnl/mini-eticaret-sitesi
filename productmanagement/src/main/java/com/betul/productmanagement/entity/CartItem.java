@@ -15,7 +15,7 @@ import lombok.*;
 //ayrı satırlar açmıyorum her quantity işte (her aynı order) için.
 @Entity
 @Table(name = "cart_items", uniqueConstraints = {
-       @UniqueConstraint(columnNames = {"user_id", "product_id"})
+       @UniqueConstraint(columnNames = {"user_id", "product_id", "deviceId"})
 })
 //aynı kullanıcı için aynı üründen sadece bir satır olur,
 // ama o satırda quantity değiştirilebilir.
@@ -32,6 +32,7 @@ public class CartItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)//dbye oto ekle
     private Long id;
 
+    private String deviceId;
 
 
     //bir user bir çok CartItema(sepete eklenen ürüne) sahip olabilir. bir Cartitem bir usera ait olabilir.

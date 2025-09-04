@@ -1,188 +1,183 @@
 <!DOCTYPE html>
-<html lang="tr" xmlns:th="http://www.thymeleaf.org">
+<html lang="tr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sepetim</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { font-family: sans-serif; }
-        table { border-collapse: collapse; width: 80%; margin: 20px auto; }
-        th, td { border: 1px solid #ccc; padding: 12px; text-align: center; }
-        th { background-color: #f2f2f2; }
-        input[type=number] { width: 60px; padding: 5px; }
-        button { padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; }
-        .delete-btn { background-color: #f44336; color: white; }
-        .checkout-container { text-align: center; margin-top: 20px; }
-        .checkout-btn { background-color: #4CAF50; color: white; padding: 15px 30px; font-size: 16px; }
-        .back-btn { background-color: #007bff; color: white; padding: 8px 15px; margin-left: 10px; }
+        body { background-color: #f8f9fa; }
+        .container { margin-top: 50px; }
+        .card-header { display:flex; justify-content:space-between; align-items:center; }
+        table thead th { background-color:#343a40; color:white; }
+        .btn-sm { padding: 2px 6px; font-size: 0.85rem; }
     </style>
 </head>
 <body>
-<header style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background-color: #f1f1f1; margin-bottom: 20px;">
-    <div id="userInfo"></div>
-    <div>
-        <button onclick="logout()">Çıkış Yap</button>
-        <button class="back-btn" onclick="goBack()">Ürünlere Geri Dön</button>
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <h3>Sepetim</h3>
+            <div>
+                <a href="/products" class="btn btn-primary">Ürünlere Dön</a>
+                <button id="logoutButton" class="btn btn-danger">Çıkış Yap</button>
+            </div>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped table-hover">
+                <thead>
+                <tr>
+                    <th>Ürün</th>
+                    <th>Fiyat</th>
+                    <th>Miktar</th>
+                    <th>Toplam</th>
+                    <th>İşlem</th>
+                </tr>
+                </thead>
+                <tbody id="cart-body"></tbody>
+            </table>
+            <h5 id="cart-total" class="mt-3">Toplam: 0 TL</h5>
+            <button id="checkoutBtn" class="btn btn-success mt-2">Ödemeye Geç</button>
+        </div>
     </div>
-</header>
-
-<h1 style="text-align:center;">Sepetim</h1>
-<table>
-    <thead>
-    <tr>
-        <th>Ürün</th>
-        <th>Fiyat</th>
-        <th>Miktar</th>
-        <th>Toplam</th>
-        <th>İşlem</th>
-    </tr>
-    </thead>
-    <tbody id="cartItems">
-    </tbody>
-</table>
-
-<div class="checkout-container">
-    <button class="checkout-btn" onclick="checkout()">Ödemeye Geç</button>
 </div>
 
-<script th:inline="javascript">
-    const userInfo = document.getElementById('userInfo');
-    const userName = localStorage.getItem('userName');
-    const userEmail = localStorage.getItem('userEmail');
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const token = localStorage.getItem('token');
+        const deviceId = localStorage.getItem('deviceId'); // deviceId'yi al
 
-    if (userName && userEmail) {
-        userInfo.innerHTML = `<strong>Kullanıcı:</strong> ${userName} (${userEmail})`;
-    }
+        // Token veya deviceId yoksa login sayfasına yönlendir
+        if (!token || !deviceId) {
+            localStorage.clear(); // Güvenlik için her şeyi temizle
+            window.location.href = '/login';
+            return; // Kodun devam etmesini engelle
+        }
 
-    function logout() {
-        localStorage.removeItem('token');
-        localStorage.removeItem('userName');
-        localStorage.removeItem('userEmail');
-        window.location.href = /*[[@{/login}]]*/ '/login';
-    }
+        const cartBody = document.getElementById('cart-body');
+        const cartTotalEl = document.getElementById('cart-total');
 
-    function goBack() {
-        window.location.href = /*[[@{/products}]]*/ '/products';
-    }
+        // Tüm fetch istekleri için ortak header'lar
+        const commonHeaders = {
+            'Authorization': 'Bearer ' + token,
+            'X-Device-Id': deviceId,
+            'Content-Type': 'application/json'
+        };
 
-    const token = localStorage.getItem('token');
-    if (!token) {
-        window.location.href = /*[[@{/login}]]*/ '/login';
-    }
-
-    async function loadCart() {
-        try {
-            const response = await fetch('http://localhost:8082/api/cart', {
-                headers: { 'Authorization': 'Bearer ' + token }
-            });
-            if (response.status === 401) window.location.href = /*[[@{/login}]]*/ '/login';
-            if (!response.ok) throw new Error("Sepet yüklenemedi");
-
-            const cartItems = await response.json();
-            const tbody = document.getElementById('cartItems');
-            tbody.innerHTML = '';
-
-            if (cartItems.length === 0) {
-                const checkoutBtn = document.querySelector('.checkout-btn');
-                checkoutBtn.disabled = true;
-                checkoutBtn.style.backgroundColor = 'grey';
+        async function fetchCart() {
+            try {
+                const res = await fetch('/api/cart', {
+                    headers: commonHeaders
+                });
+                if (!res.ok) {
+                    // Sunucudan gelen hata mesajını göstermeye çalış
+                    const errorData = await res.json().catch(() => null);
+                    const errorMessage = errorData ? errorData.message : 'Sepet yüklenirken bir hata oluştu.';
+                    throw new Error(errorMessage);
+                }
+                const items = await res.json();
+                renderCart(items);
+            } catch (err) {
+                console.error(err);
+                cartBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">${err.message}</td></tr>`;
             }
-            console.log("Loaded cart items:", cartItems);
+        }
 
-            cartItems.forEach(item => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                <td>${item.product.name}</td>
-                <td>${item.product.price.toFixed(2)} ₺</td>
+        function renderCart(items) {
+            cartBody.innerHTML = '';
+            let total = 0;
+            if (items.length === 0) {
+                cartBody.innerHTML = '<tr><td colspan="5" class="text-center">Sepetiniz boş.</td></tr>';
+                cartTotalEl.textContent = 'Toplam: 0 TL';
+                return;
+            }
+            items.forEach(item => {
+                const price = item.product ? item.product.price : 0;
+                const quantity = item.quantity || 0;
+                const subtotal = price * quantity;
+                total += subtotal;
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                <td>${item.product ? item.product.name : 'Ürün Adı Yok'}</td>
+                <td>${price.toFixed(2)} TL</td>
                 <td>
-                    <input type="number" min="1" value="${item.quantity}" onchange="updateQuantity(${item.id}, this.value)">
+                    <input type="number" min="1" value="${quantity}" style="width:60px;" class="quantity-input" data-id="${item.id}">
                 </td>
-                <td>${(item.product.price * item.quantity).toFixed(2)} ₺</td>
+                <td>${subtotal.toFixed(2)} TL</td>
                 <td>
-                    <button class="delete-btn" onclick="removeItem(${item.id})">Sil</button>
+                    <button class="btn btn-sm btn-danger remove-btn" data-id="${item.id}">Sil</button>
                 </td>
-                `;
-                tbody.appendChild(tr);
+            `;
+                cartBody.appendChild(row);
             });
+            cartTotalEl.textContent = `Toplam: ${total.toFixed(2)} TL`;
 
-        } catch (error) {
-            console.error(error);
-            alert("Sepet yüklenirken hata oluştu: " + error.message);
-        }
-    }
-
-    async function updateQuantity(id, quantity) {
-        try {
-            const response = await fetch('http://localhost:8082/api/cart/' + id, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
-                },
-                body: JSON.stringify({ quantity: parseInt(quantity) })
+            // Event listeners
+            document.querySelectorAll('.remove-btn').forEach(btn => {
+                btn.onclick = async () => {
+                    const id = btn.dataset.id;
+                    await fetch(`/api/cart/${id}`, {
+                        method: 'DELETE',
+                        headers: commonHeaders
+                    });
+                    fetchCart();
+                };
             });
-            if (!response.ok) throw new Error("Miktar güncellenemedi");
-            loadCart();
-        } catch (error) {
-            console.error(error);
-            alert("Miktar güncellenirken hata oluştu: " + error.message);
-        }
-    }
-
-    async function removeItem(id) {
-        console.log("Attempting to remove item with ID:", id);
-        const url = 'http://localhost:8082/api/cart/' + id;
-        console.log("DELETE request URL:", url);
-        try {
-            const response = await fetch(url, {
-                method: 'DELETE',
-                headers: { 'Authorization': 'Bearer ' + token }
+            document.querySelectorAll('.quantity-input').forEach(input => {
+                input.onchange = async () => {
+                    const id = input.dataset.id;
+                    const quantity = parseInt(input.value) || 1;
+                    await fetch(`/api/cart/${id}`, {
+                        method: 'PUT',
+                        headers: commonHeaders,
+                        body: JSON.stringify({ quantity })
+                    });
+                    fetchCart();
+                };
             });
-            if (!response.ok) throw new Error("Ürün silinemedi");
-            loadCart();
-        } catch (error) {
-            console.error(error);
-            alert("Ürün silinirken hata oluştu: " + error.message);
-        }
-    }
-
-    async function checkout() {
-        if (document.getElementById('cartItems').children.length === 0) {
-            alert("Sepetiniz boş. Lütfen ödeme yapmak için ürün ekleyin.");
-            return;
         }
 
-        const checkoutBtn = document.querySelector('.checkout-btn');
-        checkoutBtn.disabled = true;
-        checkoutBtn.textContent = 'İşlem Yapılıyor...';
+        document.getElementById('checkoutBtn').onclick = async () => {
+            try {
+                // Önce backend'de siparişi oluştur
+                const res = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: commonHeaders // Bu header'lar script'in başında zaten tanımlı
+                });
 
-        try {
-            const response = await fetch('http://localhost:8082/api/orders', {
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({ message: 'Sipariş oluşturulurken bir hata oluştu.' }));
+                    throw new Error(err.message);
+                }
+
+                const order = await res.json();
+                // Sipariş ID'si ile purchase sayfasına yönlendir
+                window.location.href = `/purchase?orderId=${order.id}`;
+
+            } catch (err) {
+                // Hata durumunda kullanıcıyı bilgilendir
+                alert('Hata: ' + err.message);
+            }
+        };
+
+        document.getElementById('logoutButton').onclick = () => {
+            // Logout'ta deviceId'yi de göndererek sunucudaki session'ı sil
+            fetch('/api/auth/logout', {
                 method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + token }
+                headers: commonHeaders
+            }).finally(() => {
+                localStorage.clear();
+                window.location.href = '/login';
             });
+        };
 
-            if (!response.ok) {
-                const errorResponse = await response.json();
-                const message = errorResponse.error || errorResponse.message || "Bilinmeyen bir hata oluştu.";
-                throw new Error(message);
-            }
-
-            const order = await response.json();
-            window.location.href = `/purchase?orderId=${order.id}`;
-
-        } catch (error) {
-            console.error('Checkout Hatası:', error);
-            alert(`Bir hata oluştu: ${error.message}`);
-        } finally {
-            checkoutBtn.disabled = false;
-            checkoutBtn.textContent = 'Ödemeyi Tamamla';
-        }
-    }
-
-    window.onload = loadCart;
+        fetchCart();
+    });
 </script>
 </body>
 </html>
+
 
 
 //kodun en güncel hali

@@ -21,16 +21,16 @@ public class OrderController {
     private final CurrentUserService currentUserService;
 
     @PostMapping
-    public ResponseEntity<OrderDTO> checkout() {
+    public ResponseEntity<OrderDTO> checkout(@RequestHeader("X-Device-Id") String deviceId) {
         User user = currentUserService.getCurrentUserOrThrow();
-        OrderDTO order = orderService.checkout(user);
+        OrderDTO order = orderService.checkout(user, deviceId);
         return ResponseEntity.ok(order);
     }
 
     @PostMapping("/{id}/complete")
-    public ResponseEntity<OrderDTO> completeOrder(@PathVariable Long id) {
+    public ResponseEntity<OrderDTO> completeOrder(@PathVariable Long id, @RequestHeader("X-Device-Id") String deviceId) {
         User user = currentUserService.getCurrentUserOrThrow();
-        OrderDTO order = orderService.completeOrder(id, user);
+        OrderDTO order = orderService.completeOrder(id, user, deviceId);
         return ResponseEntity.ok(order);
     }
 
